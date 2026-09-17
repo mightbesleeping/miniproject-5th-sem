@@ -1,0 +1,17 @@
+edr:
+  # Minimum severity to display/store: INFO | LOW | MEDIUM | HIGH | CRITICAL
+  min_severity: LOW
+
+  # Auditd log path (live mode)
+  audit_log: /var/log/audit/audit.log
+
+  # Detection rules directory
+  rules_dir: rules
+
+  # JSONL alert log
+  alert_log: logs/alerts.jsonl
+
+  db:
+    # Set to false to disable DuckDB persistence
+    enabled: true
+    path: data/edr_alerts.duckdb

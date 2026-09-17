@@ -1,0 +1,52 @@
+- id: EDR-001
+  name: Reverse Shell via Bash /dev/tcp
+  severity: CRITICAL
+  description: >
+    Bash opened a /dev/tcp pseudo-device, the classic one-liner reverse shell
+    technique used to exfiltrate a shell to an attacker-controlled host.
+  tags: [reverse-shell, execution, t1059.004]
+  match:
+    process: "^bash$"
+    cmd_regex: "/dev/tcp/"
+
+- id: EDR-002
+  name: Reverse Shell via Netcat -e/-c
+  severity: CRITICAL
+  description: >
+    Netcat invoked with -e or -c flag, which pipes shell execution to a remote
+    host — a textbook reverse shell payload.
+  tags: [reverse-shell, execution, t1059]
+  match:
+    process: "^(nc|ncat|netcat)$"
+    args_regex: "^(-e|-c|--exec|--sh-exec)$"
+
+- id: EDR-003
+  name: Reverse Shell via Python socket
+  severity: CRITICAL
+  description: >
+    Python executed inline code containing socket.connect and os.dup2/subprocess,
+    the standard Python reverse shell skeleton.
+  tags: [reverse-shell, execution, t1059.006]
+  match:
+    process: "^python[23]?$"
+    cmd_regex: "socket\\.connect|os\\.dup2|subprocess"
+
+- id: EDR-004
+  name: Reverse Shell via Perl socket
+  severity: CRITICAL
+  description: >
+    Perl executed inline code using IO::Socket, the standard Perl reverse shell.
+  tags: [reverse-shell, execution, t1059.003]
+  match:
+    process: "^perl$"
+    cmd_regex: "IO::Socket|socket\\("
+
+- id: EDR-005
+  name: Reverse Shell via mkfifo pipe
+  severity: HIGH
+  description: >
+    mkfifo used to create a named pipe; combined with a shell redirect this is
+    a common reverse shell setup that bypasses netcat -e restrictions.
+  tags: [reverse-shell, execution, t1059]
+  match:
+    process: "^mkfifo$"

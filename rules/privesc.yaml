@@ -1,0 +1,55 @@
+- id: EDR-101
+  name: sudo -l Enumeration
+  severity: LOW
+  description: >
+    sudo -l lists allowed commands for the current user — common first step in
+    privilege escalation reconnaissance.
+  tags: [privesc, discovery, t1069]
+  match:
+    process: "^sudo$"
+    args_regex: "^-l$"
+
+- id: EDR-102
+  name: SUID Binary Exec from /tmp
+  severity: HIGH
+  description: >
+    A binary located in /tmp was executed while running as root, suggesting a
+    SUID binary or malicious payload dropped and executed from a world-writable
+    directory.
+  tags: [privesc, execution, t1548.001]
+  match:
+    cmd_regex: "^/tmp/"
+    uid: 0
+
+- id: EDR-103
+  name: chmod +s SUID Bit Set
+  severity: HIGH
+  description: >
+    chmod was called with +s or 4xxx mode, setting the SUID bit on a binary —
+    a persistence and privilege escalation technique.
+  tags: [privesc, persistence, t1548.001]
+  match:
+    process: "^chmod$"
+    args_regex: "^(\\+s|[0-9]*[46][0-9][0-9][0-9])$"
+
+- id: EDR-104
+  name: su/sudo Interactive Shell
+  severity: MEDIUM
+  description: >
+    su or sudo was used to spawn an interactive shell, which may indicate
+    lateral movement or privilege escalation.
+  tags: [privesc, execution, t1548.003]
+  match:
+    any_of:
+      - process: "^su$"
+      - cmd_regex: "sudo\\s+(bash|sh|zsh|fish|ksh)"
+
+- id: EDR-105
+  name: pkexec Privilege Escalation (PwnKit CVE-2021-4034)
+  severity: MEDIUM
+  description: >
+    pkexec was invoked; exploitation of CVE-2021-4034 (PwnKit) uses pkexec
+    with crafted argv to escalate privileges on unpatched systems.
+  tags: [privesc, cve-2021-4034, t1068]
+  match:
+    process: "^pkexec$"

@@ -1,0 +1,31 @@
+[project]
+name = "edr-engine"
+version = "1.0.0"
+description = "Automated Endpoint Threat Detection Engine — real-time auditd-based EDR with DuckDB storage"
+readme = "README.md"
+authors = [
+    { name = "Adi", email = "53951694+mightbesleeping@users.noreply.github.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "colorama>=0.4.6",
+    "duckdb>=1.5.5",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+edr = "main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["edr"]
+include = ["main.py", "edr/**"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+

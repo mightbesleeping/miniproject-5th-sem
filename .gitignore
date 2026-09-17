@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# uv / venv
+.venv/
+uv.lock
+
+# Data & logs (runtime-generated)
+data/*.duckdb
+logs/*.jsonl
+
+# Pytest
+.pytest_cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp

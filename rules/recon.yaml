@@ -1,0 +1,76 @@
+- id: EDR-301
+  name: id/whoami/hostname/uname Enumeration
+  severity: INFO
+  description: >
+    Basic system enumeration commands run — usually the first commands executed
+    after initial access to orient the attacker.
+  tags: [recon, discovery, t1033]
+  match:
+    process: "^(id|whoami|hostname|uname|groups)$"
+
+- id: EDR-302
+  name: Network Interface Enumeration
+  severity: LOW
+  description: >
+    ifconfig, ip, or netstat used to enumerate network interfaces and
+    connections — part of network discovery.
+  tags: [recon, discovery, t1016]
+  match:
+    process: "^(ifconfig|netstat|ss)$"
+    any_of:
+      - process: "^ip$"
+        args_regex: "^(addr|link|route|neigh)$"
+
+- id: EDR-303
+  name: /etc/shadow Password File Read
+  severity: HIGH
+  description: >
+    A process attempted to read /etc/shadow, the Linux shadow password file —
+    direct credential access attempt.
+  tags: [recon, credential-access, t1003.008]
+  match:
+    cmd_regex: "/etc/shadow"
+
+- id: EDR-304
+  name: SSH Key / Credential Discovery
+  severity: MEDIUM
+  description: >
+    Searching for or reading SSH private keys or credential files in ~/.ssh/,
+    /etc/ssh/, or common credential locations.
+  tags: [recon, credential-access, t1552.004]
+  match:
+    any_of:
+      - cmd_regex: "\\.ssh/(id_rsa|id_ed25519|id_ecdsa|authorized_keys)"
+      - cmd_regex: "/etc/ssh/ssh_host"
+
+- id: EDR-305
+  name: Process Listing (ps/pstree)
+  severity: INFO
+  description: >
+    ps or pstree used to list running processes — standard post-exploitation
+    enumeration step.
+  tags: [recon, discovery, t1057]
+  match:
+    process: "^(ps|pstree|pgrep)$"
+
+- id: EDR-306
+  name: Crontab Enumeration
+  severity: LOW
+  description: >
+    crontab -l lists the current user's scheduled tasks — used to find
+    persistence mechanisms or hijack existing cron jobs.
+  tags: [recon, discovery, t1053.003]
+  match:
+    process: "^crontab$"
+    args_regex: "^-l$"
+
+- id: EDR-307
+  name: SUID/SGID Binary Search
+  severity: MEDIUM
+  description: >
+    find used to search for SUID or SGID binaries across the filesystem — a
+    standard privilege escalation enumeration technique.
+  tags: [recon, discovery, t1083]
+  match:
+    process: "^find$"
+    args_regex: "-perm\\s+(\\+|-)?[0-9]*[46][0-9][0-9][0-9]|-perm\\s+/[46]000"

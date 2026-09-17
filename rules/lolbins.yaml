@@ -1,0 +1,79 @@
+- id: EDR-201
+  name: curl/wget Download to /tmp
+  severity: HIGH
+  description: >
+    curl or wget downloaded a file to /tmp — a common staging technique for
+    malware delivery before execution.
+  tags: [lolbin, download, t1105]
+  match:
+    process: "^(curl|wget)$"
+    args_regex: "/tmp/"
+
+- id: EDR-202
+  name: curl Pipe to Shell
+  severity: CRITICAL
+  description: >
+    curl output piped directly to bash/sh — the canonical "curl | bash" dropper
+    that executes remote code without writing to disk.
+  tags: [lolbin, execution, t1059, t1105]
+  match:
+    process: "^curl$"
+    cmd_regex: "\\|\\s*(bash|sh|zsh|python)"
+
+- id: EDR-203
+  name: awk/perl Shell Spawn
+  severity: HIGH
+  description: >
+    awk or perl used to spawn a shell via system(), cmd, or exec — a GTFOBins
+    technique for shell escape.
+  tags: [lolbin, execution, t1059]
+  match:
+    any_of:
+      - process: "^awk$"
+        cmd_regex: "system\\s*\\(|/bin/(ba)?sh"
+      - process: "^perl$"
+        cmd_regex: "exec\\s+|system\\s*\\("
+
+- id: EDR-204
+  name: find -exec Shell Command
+  severity: MEDIUM
+  description: >
+    find invoked with -exec to run a shell command — a common GTFOBins escape
+    when find has elevated permissions.
+  tags: [lolbin, execution, t1059]
+  match:
+    process: "^find$"
+    cmd_regex: "-exec\\s+(bash|sh|zsh)"
+
+- id: EDR-205
+  name: vim/less/man Shell Escape
+  severity: HIGH
+  description: >
+    vim, less, or man invoked in a context suggesting a shell escape (!command),
+    used when these binaries have SUID or sudo privileges.
+  tags: [lolbin, execution, t1059]
+  match:
+    process: "^(vim|vi|less|man)$"
+    args_regex: "^-c$|^\\+.*:!|^--cmd$"
+
+- id: EDR-206
+  name: base64 Decode Pipe to Shell
+  severity: MEDIUM
+  description: >
+    base64 -d output piped into a shell — a common obfuscation technique to
+    hide payloads from simple string searches.
+  tags: [lolbin, obfuscation, t1027]
+  match:
+    process: "^base64$"
+    cmd_regex: "\\|\\s*(bash|sh|python|perl)"
+
+- id: EDR-207
+  name: dd Disk Overwrite
+  severity: HIGH
+  description: >
+    dd used with of= targeting a block device — can be used for data destruction
+    or raw disk exfiltration.
+  tags: [lolbin, impact, t1561]
+  match:
+    process: "^dd$"
+    args_regex: "^of=/dev/(sd|hd|nvme|vd)"

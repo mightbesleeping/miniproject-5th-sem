@@ -1,0 +1,66 @@
+- id: EDR-401
+  name: Cron Job Backdoor
+  severity: HIGH
+  description: >
+    A process wrote directly to /etc/cron.d/, /etc/crontab, or /var/spool/cron/,
+    indicating a cron-based persistence mechanism being installed.
+  tags: [persistence, scheduled-task, t1053.003]
+  match:
+    any_of:
+      - cmd_regex: "/etc/cron\\.(d|daily|hourly|weekly|monthly)/"
+      - cmd_regex: "/var/spool/cron/"
+      - cmd_regex: "/etc/crontab"
+
+- id: EDR-402
+  name: SSH authorized_keys Write
+  severity: HIGH
+  description: >
+    A file write to ~/.ssh/authorized_keys or /root/.ssh/authorized_keys was
+    detected — a common SSH backdoor technique.
+  tags: [persistence, account-manipulation, t1098.004]
+  match:
+    cmd_regex: "\\.ssh/authorized_keys"
+
+- id: EDR-403
+  name: Systemd Service Unit Created
+  severity: HIGH
+  description: >
+    A new .service file was written to a systemd directory — persistence via
+    systemd is a stealthy and reliable technique on Linux systems.
+  tags: [persistence, create-service, t1543.002]
+  match:
+    any_of:
+      - cmd_regex: "/etc/systemd/system/.*\\.service"
+      - cmd_regex: "/usr/lib/systemd/system/.*\\.service"
+      - cmd_regex: "\\.config/systemd/user/.*\\.service"
+
+- id: EDR-404
+  name: Shell RC File Modification
+  severity: MEDIUM
+  description: >
+    .bashrc, .bash_profile, .profile, or .zshrc was modified — attackers
+    add persistence payloads here to survive user logins.
+  tags: [persistence, event-triggered, t1546.004]
+  match:
+    cmd_regex: "\\.(bashrc|bash_profile|bash_logout|profile|zshrc|zprofile)"
+
+- id: EDR-405
+  name: LD_PRELOAD Hijacking
+  severity: CRITICAL
+  description: >
+    LD_PRELOAD environment variable was set before executing a command — a
+    shared library injection technique used for persistence and privilege
+    escalation.
+  tags: [persistence, hijack-execution, t1574.006]
+  match:
+    cmd_regex: "LD_PRELOAD="
+
+- id: EDR-406
+  name: at/batch Scheduled Job
+  severity: MEDIUM
+  description: >
+    at or batch was used to schedule a one-time job — may indicate an attacker
+    scheduling a callback or delayed payload execution.
+  tags: [persistence, scheduled-task, t1053.001]
+  match:
+    process: "^(at|batch|atd)$"
