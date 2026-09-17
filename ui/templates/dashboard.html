@@ -238,9 +238,10 @@
           <label class="form-label small text-muted">Audit log file path</label>
           <input type="text" class="form-control form-control-sm mb-2" id="replay-path"
                  placeholder="/var/log/audit/audit.log"
-                 value="/var/log/audit/audit.log"/>
-          <div class="form-text text-muted mb-2" style="font-size:.72rem">
-            Replay parses a static log file — no root required.
+                 value="data/sample_audit.log"/>
+          <div class="form-text mb-2" style="font-size:.72rem;color:var(--muted)">
+            Replay parses a static log file — no root required.<br>
+            <span style="color:#3fb950">✓ Sample log ready:</span> <code>data/sample_audit.log</code>
           </div>
         </div>
         <div id="live-panel" style="display:none">
