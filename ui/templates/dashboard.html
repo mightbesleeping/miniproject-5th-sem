@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>EDR Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --info:      #58a6ff;
+    --low:       #3fb950;
+    --medium:    #d29922;
+    --high:      #f85149;
+    --critical:  #bc8cff;
+    --accent:    #238636;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+  /* ── Topbar ─────────────────────────────────────────────── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: .75rem 1.5rem;
+    display: flex; align-items: center; gap: 1.5rem;
+  }
+  .topbar h1 { font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: .04em; }
+  .topbar h1 span { color: var(--info); }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--muted); display: inline-block;
+    transition: background .3s;
+  }
+  .status-dot.live { background: #3fb950; box-shadow: 0 0 6px #3fb950; animation: pulse 1.5s infinite; }
+  .status-dot.error { background: var(--high); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Stat cards ─────────────────────────────────────────── */
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .9rem 1.2rem; text-align: center;
+  }
+  .stat-card .num { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .stat-card .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: .25rem; }
+
+  /* ── Severity colours ───────────────────────────────────── */
+  .sev-INFO     { color: var(--info);     }
+  .sev-LOW      { color: var(--low);      }
+  .sev-MEDIUM   { color: var(--medium);   }
+  .sev-HIGH     { color: var(--high);     }
+  .sev-CRITICAL { color: var(--critical); }
+
+  .badge-INFO     { background: rgba(88,166,255,.18); color: var(--info);     }
+  .badge-LOW      { background: rgba(63,185,80,.18);  color: var(--low);      }
+  .badge-MEDIUM   { background: rgba(210,153,34,.18); color: var(--medium);   }
+  .badge-HIGH     { background: rgba(248,81,73,.18);  color: var(--high);     }
+  .badge-CRITICAL { background: rgba(188,140,255,.18);color: var(--critical); }
+
+  /* ── Alert feed ─────────────────────────────────────────── */
+  #alert-feed {
+    height: 480px; overflow-y: auto;
+    background: #010409; border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'JetBrains Mono','Fira Mono',monospace; font-size: .78rem;
+    padding: .5rem;
+  }
+  .alert-row {
+    border-left: 3px solid var(--border);
+    padding: .5rem .75rem;
+    margin-bottom: .35rem;
+    border-radius: 0 4px 4px 0;
+    background: rgba(255,255,255,.02);
+    animation: fadeIn .25s ease;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .alert-row:hover { background: rgba(255,255,255,.05); }
+  .alert-row.INFO     { border-color: var(--info);     }
+  .alert-row.LOW      { border-color: var(--low);      }
+  .alert-row.MEDIUM   { border-color: var(--medium);   }
+  .alert-row.HIGH     { border-color: var(--high);     }
+  .alert-row.CRITICAL { border-color: var(--critical); }
+  .alert-row .rule-name { font-weight: 600; }
+  .alert-row .cmd-line  { color: var(--muted); font-size: .72rem; margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .alert-row .meta { font-size: .68rem; color: var(--muted); margin-top: .2rem; }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+
+  #empty-feed { color: var(--muted); text-align: center; padding: 3rem; }
+
+  /* ── History table ──────────────────────────────────────── */
+  #history-table { font-size: .8rem; }
+  #history-table td { vertical-align: middle; }
+  .cmd-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+
+  /* ── Rules browser ──────────────────────────────────────── */
+  .rule-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: .65rem 1rem; margin-bottom: .4rem; }
+  .rule-item .rule-id { font-family: monospace; font-size: .8rem; color: var(--muted); }
+  .rule-item .rule-desc { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+
+  /* ── Control panel ──────────────────────────────────────── */
+  .control-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; }
+
+  /* ── Tabs ───────────────────────────────────────────────── */
+  .nav-tabs .nav-link { color: var(--muted); border-color: transparent; }
+  .nav-tabs .nav-link.active { color: var(--text); background: var(--surface); border-color: var(--border) var(--border) var(--surface); }
+
+  /* scrollbar */
+  #alert-feed::-webkit-scrollbar { width: 5px; }
+  #alert-feed::-webkit-scrollbar-track { background: transparent; }
+  #alert-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9px; }
+
+  /* modal detail */
+  .detail-key { color: var(--muted); font-size: .78rem; }
+  .detail-val { font-family: monospace; font-size: .82rem; }
+  pre.cmd-block { background: #010409; border: 1px solid var(--border); border-radius: 6px; padding: .75rem; font-size: .82rem; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ TOPBAR ════════════════ -->
+<div class="topbar">
+  <div>
+    <span class="me-1" style="font-size:1.3rem">🛡️</span>
+    <h1 class="d-inline">EDR <span>Dashboard</span></h1>
+  </div>
+  <div class="d-flex align-items-center gap-2 ms-2">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text" class="text-muted small">Idle</span>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <span class="badge rounded-pill bg-secondary" id="mode-badge" style="display:none!important"></span>
+    <span class="small text-muted" id="uptime-text"></span>
+  </div>
+</div>
+
+<!-- ════════════════ MAIN CONTENT ════════════════ -->
+<div class="container-fluid px-3 py-3">
+
+  <!-- Stat row -->
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <div class="num" id="stat-total">—</div>
+        <div class="lbl">Total Alerts</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <div class="num sev-CRITICAL" id="stat-critical">—</div>
+        <div class="lbl">Critical</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <div class="num sev-HIGH" id="stat-high">—</div>
+        <div class="lbl">High</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <div class="num sev-MEDIUM" id="stat-medium">—</div>
+        <div class="lbl">Medium</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <div class="num sev-LOW" id="stat-low">—</div>
+        <div class="lbl">Low</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <div class="num sev-INFO" id="stat-info">—</div>
+        <div class="lbl">Info</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body: feed left + controls right -->
+  <div class="row g-3">
+
+    <!-- ── Left: Live Feed ── -->
+    <div class="col-lg-8">
+      <div class="d-flex align-items-center mb-2 gap-2">
+        <span class="fw-semibold">Live Alert Feed</span>
+        <span class="badge bg-secondary ms-auto" id="feed-count">0</span>
+        <button class="btn btn-sm btn-outline-secondary" id="btn-clear-feed" title="Clear feed">
+          <i class="bi bi-trash3"></i>
+        </button>
+        <div class="form-check form-switch mb-0 ms-2">
+          <input class="form-check-input" type="checkbox" id="auto-scroll" checked/>
+          <label class="form-check-label small" for="auto-scroll">Auto-scroll</label>
+        </div>
+        <select class="form-select form-select-sm w-auto" id="sev-filter">
+          <option value="">All severities</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+          <option value="INFO">Info</option>
+        </select>
+      </div>
+      <div id="alert-feed">
+        <div id="empty-feed">
+          <i class="bi bi-shield-check" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>
+          No alerts yet — start the engine below
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right: Controls + Top Rules ── -->
+    <div class="col-lg-4">
+
+      <!-- Controls -->
+      <div class="control-card mb-3">
+        <div class="fw-semibold mb-3"><i class="bi bi-cpu me-1"></i> Engine Controls</div>
+
+        <ul class="nav nav-tabs mb-3" id="mode-tab">
+          <li class="nav-item">
+            <button class="nav-link active" data-mode="replay">
+              <i class="bi bi-play-circle me-1"></i>Replay
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-mode="live">
+              <i class="bi bi-broadcast me-1"></i>Live
+            </button>
+          </li>
+        </ul>
+
+        <div id="replay-panel">
+          <label class="form-label small text-muted">Audit log file path</label>
+          <input type="text" class="form-control form-control-sm mb-2" id="replay-path"
+                 placeholder="/var/log/audit/audit.log"
+                 value="/var/log/audit/audit.log"/>
+          <div class="form-text text-muted mb-2" style="font-size:.72rem">
+            Replay parses a static log file — no root required.
+          </div>
+        </div>
+        <div id="live-panel" style="display:none">
+          <div class="alert alert-warning py-2 small mb-2">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Live mode tails <code>/var/log/audit/audit.log</code> and requires
+            the app to run as <strong>root</strong>.
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-success w-100" id="btn-start">
+            <i class="bi bi-play-fill me-1"></i>Start
+          </button>
+          <button class="btn btn-danger w-100" id="btn-stop" disabled>
+            <i class="bi bi-stop-fill me-1"></i>Stop
+          </button>
+        </div>
+
+        <div id="engine-error" class="alert alert-danger mt-2 py-2 small" style="display:none"></div>
+      </div>
+
+      <!-- Top Rules (from DuckDB stats) -->
+      <div class="control-card">
+        <div class="fw-semibold mb-2"><i class="bi bi-bar-chart me-1"></i> Top Triggered Rules</div>
+        <div id="top-rules">
+          <div class="text-muted small text-center py-3">Run the engine to populate stats</div>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary w-100 mt-2" id="btn-refresh-stats">
+          <i class="bi bi-arrow-clockwise me-1"></i>Refresh Stats
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /row -->
+
+  <!-- ════ Tabs: History + Rules Browser ════ -->
+  <div class="mt-4">
+    <ul class="nav nav-tabs" id="bottom-tab">
+      <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-history">
+          <i class="bi bi-clock-history me-1"></i>Alert History
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rules">
+          <i class="bi bi-list-check me-1"></i>Detection Rules
+          <span class="badge bg-secondary ms-1" id="rule-count"></span>
+        </button>
+      </li>
+    </ul>
+    <div class="tab-content pt-3">
+
+      <!-- History -->
+      <div class="tab-pane fade show active" id="tab-history">
+        <div class="d-flex gap-2 mb-2">
+          <input type="text" class="form-control form-control-sm" id="history-search"
+                 placeholder="Search rule ID, name, command…" style="max-width:320px"/>
+          <select class="form-select form-select-sm w-auto" id="history-sev-filter">
+            <option value="">All</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+            <option value="INFO">Info</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" id="btn-refresh-history">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div class="table-responsive" style="max-height:360px;overflow-y:auto">
+          <table class="table table-sm table-hover" id="history-table">
+            <thead class="table-dark sticky-top">
+              <tr>
+                <th>#</th><th>Severity</th><th>Rule</th><th>PID</th>
+                <th>UID</th><th>Exe</th><th>Command</th><th>Fired At</th>
+              </tr>
+            </thead>
+            <tbody id="history-body">
+              <tr><td colspan="8" class="text-muted text-center py-3">No data — run the engine first</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Rules Browser -->
+      <div class="tab-pane fade" id="tab-rules">
+        <div class="mb-2">
+          <input type="text" class="form-control form-control-sm" id="rules-search"
+                 placeholder="Filter rules…" style="max-width:320px"/>
+        </div>
+        <div id="rules-list" style="max-height:400px;overflow-y:auto"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ════ Alert Detail Modal ════ -->
+<div class="modal fade" id="alert-modal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:var(--surface);border-color:var(--border)">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title" id="modal-title"></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════
+const state = {
+  running: false,
+  mode: 'replay',
+  alertCount: 0,
+  feedAlerts: [],        // all alerts received this session
+  startedAt: null,
+};
+
+// ═══════════════════════════════════════════════
+//  DOM refs
+// ═══════════════════════════════════════════════
+const $dot        = document.getElementById('status-dot');
+const $statusText = document.getElementById('status-text');
+const $feedCount  = document.getElementById('feed-count');
+const $feed       = document.getElementById('alert-feed');
+const $emptyFeed  = document.getElementById('empty-feed');
+const $btnStart   = document.getElementById('btn-start');
+const $btnStop    = document.getElementById('btn-stop');
+const $btnClear   = document.getElementById('btn-clear-feed');
+const $sevFilter  = document.getElementById('sev-filter');
+const $autoScroll = document.getElementById('auto-scroll');
+const $engineErr  = document.getElementById('engine-error');
+const $histBody   = document.getElementById('history-body');
+const $histSearch = document.getElementById('history-search');
+const $histSev    = document.getElementById('history-sev-filter');
+const $rulesList  = document.getElementById('rules-list');
+const $rulesSearch = document.getElementById('rules-search');
+const $ruleCount  = document.getElementById('rule-count');
+const $topRules   = document.getElementById('top-rules');
+const $uptimeText = document.getElementById('uptime-text');
+
+const SEV_ICON = {
+  INFO: 'ℹ', LOW: '⚠', MEDIUM: '⚠', HIGH: '🔴', CRITICAL: '🚨'
+};
+
+// ═══════════════════════════════════════════════
+//  SSE Connection
+// ═══════════════════════════════════════════════
+let es = null;
+function connectSSE() {
+  es = new EventSource('/api/stream');
+  es.onmessage = e => handleMessage(JSON.parse(e.data));
+  es.onerror   = () => { $dot.className = 'status-dot error'; };
+}
+connectSSE();
+
+function handleMessage(msg) {
+  if (msg.type === 'status') {
+    applyStatus(msg);
+  } else if (msg.type === 'alert') {
+    addAlertToFeed(msg);
+    updateStatCards(null);  // refresh from server
+  } else if (msg.type === 'error') {
+    showEngineError(msg.message);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Status helpers
+// ═══════════════════════════════════════════════
+function applyStatus(s) {
+  state.running = s.running;
+  if (s.started_at) state.startedAt = new Date(s.started_at);
+  if (s.alert_count != null) state.alertCount = s.alert_count;
+
+  $dot.className = 'status-dot' + (s.running ? ' live' : '');
+  if (s.running) {
+    $statusText.textContent = s.mode === 'live' ? 'Live — tailing audit log' : 'Replaying log file…';
+    $statusText.className = 'small text-success';
+  } else {
+    $statusText.textContent = 'Idle';
+    $statusText.className = 'small text-muted';
+    state.startedAt = null;
+    $uptimeText.textContent = '';
+  }
+  $btnStart.disabled = s.running;
+  $btnStop.disabled  = !s.running;
+}
+
+function showEngineError(msg) {
+  $engineErr.textContent = '⚠ ' + msg;
+  $engineErr.style.display = '';
+  setTimeout(() => $engineErr.style.display = 'none', 8000);
+}
+
+// Uptime counter
+setInterval(() => {
+  if (!state.running || !state.startedAt) return;
+  const secs = Math.floor((Date.now() - state.startedAt) / 1000);
+  const h = String(Math.floor(secs/3600)).padStart(2,'0');
+  const m = String(Math.floor((secs%3600)/60)).padStart(2,'0');
+  const s2 = String(secs%60).padStart(2,'0');
+  $uptimeText.textContent = `${h}:${m}:${s2}`;
+}, 1000);
+
+// ═══════════════════════════════════════════════
+//  Feed
+// ═══════════════════════════════════════════════
+function addAlertToFeed(alert) {
+  state.feedAlerts.push(alert);
+  $feedCount.textContent = state.feedAlerts.length;
+
+  if ($emptyFeed) $emptyFeed.remove();
+
+  const filter = $sevFilter.value;
+  if (filter && alert.severity !== filter) return;
+
+  const div = buildAlertRow(alert);
+  $feed.appendChild(div);
+
+  if ($autoScroll.checked) {
+    $feed.scrollTop = $feed.scrollHeight;
+  }
+}
+
+function buildAlertRow(a) {
+  const div = document.createElement('div');
+  div.className = `alert-row ${a.severity}`;
+  div.dataset.alert = JSON.stringify(a);
+
+  const ts = new Date(a.fired_at).toLocaleTimeString();
+  const icon = SEV_ICON[a.severity] || '•';
+  div.innerHTML = `
+    <div class="d-flex align-items-baseline gap-2">
+      <span class="sev-${a.severity}" style="font-size:.75rem;min-width:68px">
+        ${icon} ${a.severity}
+      </span>
+      <span class="rule-name">${a.rule_id} — ${a.rule_name}</span>
+      <span class="ms-auto text-muted" style="font-size:.67rem;white-space:nowrap">${ts}</span>
+    </div>
+    <div class="cmd-line">${escHtml(a.cmd || '—')}</div>
+    <div class="meta">pid=${a.pid}  uid=${a.uid}  exe=${escHtml(a.exe||'?')}</div>
+  `;
+  div.addEventListener('click', () => showAlertModal(a));
+  return div;
+}
+
+function rebuildFeed() {
+  $feed.innerHTML = '';
+  const filter = $sevFilter.value;
+  const visible = filter ? state.feedAlerts.filter(a => a.severity === filter) : state.feedAlerts;
+  if (!visible.length) {
+    $feed.innerHTML = '<div id="empty-feed" class="text-muted text-center py-5">No alerts match filter</div>';
+    return;
+  }
+  visible.forEach(a => $feed.appendChild(buildAlertRow(a)));
+  if ($autoScroll.checked) $feed.scrollTop = $feed.scrollHeight;
+}
+
+$sevFilter.addEventListener('change', rebuildFeed);
+$btnClear.addEventListener('click', () => {
+  state.feedAlerts = [];
+  $feedCount.textContent = '0';
+  $feed.innerHTML = '<div id="empty-feed" class="text-muted text-center py-5"><i class="bi bi-shield-check" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>Feed cleared</div>';
+});
+
+// ═══════════════════════════════════════════════
+//  Stat cards
+// ═══════════════════════════════════════════════
+async function updateStatCards() {
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) return;
+    const s = await r.json();
+    document.getElementById('stat-total').textContent    = s.total ?? '—';
+    document.getElementById('stat-critical').textContent = s.by_severity?.CRITICAL ?? 0;
+    document.getElementById('stat-high').textContent     = s.by_severity?.HIGH ?? 0;
+    document.getElementById('stat-medium').textContent   = s.by_severity?.MEDIUM ?? 0;
+    document.getElementById('stat-low').textContent      = s.by_severity?.LOW ?? 0;
+    document.getElementById('stat-info').textContent     = s.by_severity?.INFO ?? 0;
+
+    // Top rules
+    if (s.top_rules?.length) {
+      $topRules.innerHTML = s.top_rules.slice(0, 6).map(r => `
+        <div class="d-flex justify-content-between align-items-center mb-1 small">
+          <span class="text-muted font-monospace" style="font-size:.72rem">${r.rule_id}</span>
+          <span class="flex-grow-1 ms-2 text-truncate">${r.rule_name}</span>
+          <span class="badge bg-secondary ms-2">${r.count}</span>
+        </div>
+      `).join('');
+    }
+  } catch {}
+}
+updateStatCards();
+document.getElementById('btn-refresh-stats').addEventListener('click', updateStatCards);
+
+// Periodic refresh while running
+setInterval(() => { if (state.running) updateStatCards(); }, 5000);
+
+// ═══════════════════════════════════════════════
+//  Engine controls
+// ═══════════════════════════════════════════════
+const modeBtns = document.querySelectorAll('[data-mode]');
+modeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modeBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.mode = btn.dataset.mode;
+    document.getElementById('replay-panel').style.display = state.mode === 'replay' ? '' : 'none';
+    document.getElementById('live-panel').style.display   = state.mode === 'live'   ? '' : 'none';
+  });
+});
+
+$btnStart.addEventListener('click', async () => {
+  $engineErr.style.display = 'none';
+  const body = { mode: state.mode };
+  if (state.mode === 'replay') {
+    body.replay_file = document.getElementById('replay-path').value.trim();
+  }
+  const r = await fetch('/api/start', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (!j.ok) showEngineError(j.error);
+});
+
+$btnStop.addEventListener('click', async () => {
+  await fetch('/api/stop', { method: 'POST' });
+});
+
+// ═══════════════════════════════════════════════
+//  Alert History
+// ═══════════════════════════════════════════════
+let _historyData = [];
+
+async function loadHistory() {
+  const sev = $histSev.value;
+  const url = '/api/recent?limit=100' + (sev ? `&severity=${sev}` : '');
+  try {
+    const r = await fetch(url);
+    _historyData = await r.json();
+    renderHistory();
+  } catch {}
+}
+
+function renderHistory() {
+  const q = $histSearch.value.toLowerCase();
+  const rows = _historyData.filter(row => {
+    if (!q) return true;
+    return (row.rule_id + row.rule_name + (row.event_cmd||'')).toLowerCase().includes(q);
+  });
+  if (!rows.length) {
+    $histBody.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-3">No matching alerts</td></tr>';
+    return;
+  }
+  $histBody.innerHTML = rows.map(row => `
+    <tr>
+      <td>${row.alert_no}</td>
+      <td><span class="badge badge-${row.severity} rounded-pill">${row.severity}</span></td>
+      <td>${row.rule_id}<br><small class="text-muted">${row.rule_name}</small></td>
+      <td>${row.event_pid ?? '—'}</td>
+      <td>${row.event_uid ?? '—'}</td>
+      <td class="font-monospace" style="font-size:.72rem">${escHtml(row.event_exe||'—')}</td>
+      <td class="cmd-cell font-monospace" title="${escHtml(row.event_cmd||'')}">${escHtml(row.event_cmd||'—')}</td>
+      <td style="white-space:nowrap;font-size:.72rem">${row.fired_at ? new Date(row.fired_at).toLocaleString() : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('btn-refresh-history').addEventListener('click', loadHistory);
+document.querySelector('[data-bs-target="#tab-history"]').addEventListener('click', loadHistory);
+$histSearch.addEventListener('input', renderHistory);
+$histSev.addEventListener('change', loadHistory);
+
+// ═══════════════════════════════════════════════
+//  Rules browser
+// ═══════════════════════════════════════════════
+let _allRules = [];
+
+async function loadRules() {
+  try {
+    const r = await fetch('/api/rules');
+    _allRules = await r.json();
+    $ruleCount.textContent = _allRules.length;
+    renderRules();
+  } catch {}
+}
+
+function renderRules() {
+  const q = $rulesSearch.value.toLowerCase();
+  const rules = q ? _allRules.filter(r =>
+    (r.id+r.name+r.description+(r.tags||[]).join(' ')).toLowerCase().includes(q)
+  ) : _allRules;
+
+  $rulesList.innerHTML = rules.map(r => `
+    <div class="rule-item">
+      <div class="d-flex align-items-center gap-2">
+        <span class="rule-id">${r.id}</span>
+        <span class="fw-semibold">${r.name}</span>
+        <span class="ms-auto badge badge-${r.severity} rounded-pill">${r.severity}</span>
+      </div>
+      <div class="rule-desc">${escHtml(r.description)}</div>
+      <div class="mt-1">${(r.tags||[]).map(t=>`<span class="badge bg-secondary me-1" style="font-size:.65rem">${t}</span>`).join('')}</div>
+    </div>
+  `).join('');
+}
+
+document.querySelector('[data-bs-target="#tab-rules"]').addEventListener('click', () => {
+  if (!_allRules.length) loadRules();
+});
+$rulesSearch.addEventListener('input', renderRules);
+loadRules();
+
+// ═══════════════════════════════════════════════
+//  Alert Detail Modal
+// ═══════════════════════════════════════════════
+const alertModal = new bootstrap.Modal(document.getElementById('alert-modal'));
+
+function showAlertModal(a) {
+  document.getElementById('modal-title').innerHTML =
+    `<span class="sev-${a.severity}">${SEV_ICON[a.severity]} ${a.severity}</span>
+     &nbsp; ${a.rule_id} — ${escHtml(a.rule_name)}`;
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <div class="detail-key">Rule ID</div><div class="detail-val">${a.rule_id}</div>
+      </div>
+      <div class="col-6">
+        <div class="detail-key">Fired At</div><div class="detail-val">${new Date(a.fired_at).toLocaleString()}</div>
+      </div>
+      <div class="col-6">
+        <div class="detail-key">PID</div><div class="detail-val">${a.pid ?? '—'}</div>
+      </div>
+      <div class="col-6">
+        <div class="detail-key">UID</div><div class="detail-val">${a.uid ?? '—'}</div>
+      </div>
+      <div class="col-12">
+        <div class="detail-key">Executable</div><div class="detail-val font-monospace">${escHtml(a.exe||'—')}</div>
+      </div>
+      <div class="col-12">
+        <div class="detail-key">CWD</div><div class="detail-val font-monospace">${escHtml(a.cwd||'—')}</div>
+      </div>
+    </div>
+    <div class="detail-key mb-1">Command</div>
+    <pre class="cmd-block">${escHtml(a.cmd||'—')}</pre>
+    <div class="detail-key mt-2 mb-1">Tags</div>
+    <div>${(a.tags||[]).map(t=>`<span class="badge bg-secondary me-1">${t}</span>`).join('')}</div>
+  `;
+  alertModal.show();
+}
+
+// ═══════════════════════════════════════════════
+//  Utilities
+// ═══════════════════════════════════════════════
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
