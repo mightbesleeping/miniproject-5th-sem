@@ -355,6 +355,7 @@ class TestAlertStore:
     def test_insert_and_count(self, tmp_path):
         store = AlertStore(str(tmp_path / "test.duckdb"))
         store.insert(_sample_alert(1))
+        store.flush()           # batch write is buffered — flush before reading
         assert store.count() == 1
         store.close()
 
@@ -362,12 +363,14 @@ class TestAlertStore:
         store = AlertStore(str(tmp_path / "test.duckdb"))
         for i in range(5):
             store.insert(_sample_alert(i + 1))
+        store.flush()
         assert store.count() == 5
         store.close()
 
     def test_recent_returns_list(self, tmp_path):
         store = AlertStore(str(tmp_path / "test.duckdb"))
         store.insert(_sample_alert(1))
+        store.flush()
         rows = store.recent(limit=10)
         assert len(rows) == 1
         assert rows[0]["rule_id"] == "EDR-001"
@@ -379,8 +382,22 @@ class TestAlertStore:
         a["severity"] = "CRITICAL"
         store.insert(a)
         store.insert(_sample_alert(2))
+        store.flush()
         rows = store.recent(severity="CRITICAL")
         assert len(rows) == 1
+        store.close()
+
+    def test_recent_min_severity(self, tmp_path):
+        store = AlertStore(str(tmp_path / "test.duckdb"))
+        for sev, n in [("INFO", 1), ("LOW", 2), ("HIGH", 3), ("CRITICAL", 4)]:
+            a = _sample_alert(n)
+            a["severity"] = sev
+            store.insert(a)
+        store.flush()
+        rows = store.recent(min_severity="HIGH")
+        sevs = {r["severity"] for r in rows}
+        assert "INFO" not in sevs
+        assert "LOW" not in sevs
         store.close()
 
     def test_count_severity_filter(self, tmp_path):
@@ -389,6 +406,7 @@ class TestAlertStore:
         a["severity"] = "LOW"
         store.insert(a)
         store.insert(_sample_alert(2))  # HIGH
+        store.flush()
         assert store.count(severity="LOW") == 1
         assert store.count(severity="HIGH") == 1
         store.close()
@@ -396,21 +414,66 @@ class TestAlertStore:
     def test_stats(self, tmp_path):
         store = AlertStore(str(tmp_path / "test.duckdb"))
         store.insert(_sample_alert(1))
+        store.flush()
         s = store.stats()
         assert s["total"] == 1
         assert "HIGH" in s["by_severity"]
         assert len(s["top_rules"]) == 1
         store.close()
 
+    def test_stats_richer_fields(self, tmp_path):
+        """Stats now returns unique_rules, first_seen, last_seen per severity."""
+        store = AlertStore(str(tmp_path / "test.duckdb"))
+        store.insert(_sample_alert(1))
+        store.flush()
+        s = store.stats()
+        sev_data = s["by_severity"]["HIGH"]
+        assert "count" in sev_data
+        assert "unique_rules" in sev_data
+        store.close()
+
+    def test_tags_stored_as_array(self, tmp_path):
+        """tags column is VARCHAR[] — verify tag_frequency uses unnest correctly."""
+        store = AlertStore(str(tmp_path / "test.duckdb"))
+        store.insert(_sample_alert(1))  # tags: ["test", "unit"]
+        store.flush()
+        freqs = store.tag_frequency()
+        tags_found = {r["tag"] for r in freqs}
+        assert "test" in tags_found
+        assert "unit" in tags_found
+        store.close()
+
+    def test_timeline_returns_list(self, tmp_path):
+        store = AlertStore(str(tmp_path / "test.duckdb"))
+        store.insert(_sample_alert(1))
+        store.flush()
+        tl = store.timeline(bucket="minute")
+        assert isinstance(tl, list)
+        store.close()
+
+    def test_heatmap_returns_list(self, tmp_path):
+        store = AlertStore(str(tmp_path / "test.duckdb"))
+        store.insert(_sample_alert(1))
+        store.flush()
+        hm = store.heatmap()
+        assert isinstance(hm, list)
+        if hm:
+            assert "hour" in hm[0]
+            assert "severity" in hm[0]
+            assert "count" in hm[0]
+        store.close()
+
     def test_context_manager(self, tmp_path):
         with AlertStore(str(tmp_path / "test.duckdb")) as store:
             store.insert(_sample_alert(1))
+            store.flush()
             assert store.count() == 1
 
     def test_persistence(self, tmp_path):
         path = str(tmp_path / "test.duckdb")
         with AlertStore(path) as s:
             s.insert(_sample_alert(1))
+        # close() calls flush() automatically
         with AlertStore(path) as s:
             assert s.count() == 1
 

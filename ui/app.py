@@ -52,6 +52,30 @@ _status: dict[str, Any] = {
     "error": None,
 }
 
+# Shared persistent AlertStore — opened once, reused by engine thread + API routes
+_shared_store: AlertStore | None = None
+
+
+def _get_store() -> AlertStore | None:
+    """Return the shared AlertStore, initializing it if needed."""
+    global _shared_store
+    if _shared_store is not None:
+        return _shared_store
+    cfg = load_config("config.yaml")
+    db_cfg = cfg["edr"]["db"]
+    if not db_cfg.get("enabled", True):
+        return None
+    try:
+        _shared_store = AlertStore(db_cfg.get("path", "data/edr_alerts.duckdb"))
+        return _shared_store
+    except Exception as exc:
+        logger.error("Failed to open shared AlertStore: %s", exc)
+        return None
+
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 def _broadcast(payload: dict) -> None:
     """Push a dict to every active SSE subscriber."""
@@ -99,15 +123,12 @@ class DashboardAlerter(Alerter):
 def _run_engine(cfg: dict, mode: str, replay_file: str | None) -> None:
     global _status
     edr_cfg = cfg["edr"]
-    db_cfg = edr_cfg["db"]
 
-    db_store = None
-    if db_cfg.get("enabled", True):
-        try:
-            db_store = AlertStore(db_cfg.get("path", "data/edr_alerts.duckdb"))
-        except Exception as exc:
-            with _lock:
-                _status["error"] = f"DuckDB init failed: {exc}"
+    # Use the shared persistent store (already opened, batched writes)
+    db_store = _get_store()
+    if db_store is None and cfg["edr"]["db"].get("enabled", True):
+        with _lock:
+            _status["error"] = "DuckDB unavailable — running without persistence"
 
     alerter = DashboardAlerter(
         alert_log=edr_cfg.get("alert_log", "logs/alerts.jsonl"),
@@ -159,8 +180,9 @@ def _run_engine(cfg: dict, mode: str, replay_file: str | None) -> None:
             _status["error"] = str(exc)
         _broadcast({"type": "error", "message": str(exc)})
     finally:
+        # Flush buffered alerts immediately — don't close the shared connection
         if db_store:
-            db_store.close()
+            db_store.flush()
         with _lock:
             _status["running"] = False
         _broadcast({"type": "status", "running": False})
@@ -264,28 +286,92 @@ def api_stop():
 
 @app.route("/api/stats")
 def api_stats():
-    cfg = load_config("config.yaml")
-    db_cfg = cfg["edr"]["db"]
-    if not db_cfg.get("enabled", True):
-        return jsonify({"error": "DuckDB disabled"}), 503
+    store = _get_store()
+    if store is None:
+        return jsonify({"error": "DuckDB disabled or unavailable"}), 503
     try:
-        with AlertStore(db_cfg.get("path", "data/edr_alerts.duckdb")) as store:
-            return jsonify(store.stats())
+        store.flush()           # ensure latest buffered alerts are visible
+        return jsonify(store.stats())
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/api/recent")
 def api_recent():
-    cfg = load_config("config.yaml")
-    db_cfg = cfg["edr"]["db"]
-    if not db_cfg.get("enabled", True):
+    store = _get_store()
+    if store is None:
         return jsonify([])
     limit = int(request.args.get("limit", 50))
     severity = request.args.get("severity") or None
+    min_severity = request.args.get("min_severity") or None
     try:
-        with AlertStore(db_cfg.get("path", "data/edr_alerts.duckdb")) as store:
-            return jsonify(store.recent(limit=limit, severity=severity))
+        store.flush()
+        rows = store.recent(limit=limit, severity=severity, min_severity=min_severity)
+        # Serialize lists (tags) for JSON
+        for r in rows:
+            if isinstance(r.get("tags"), list):
+                pass  # already serializable
+        return jsonify(rows)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/timeline")
+def api_timeline():
+    """Alerts bucketed by time using DuckDB's date_trunc."""
+    store = _get_store()
+    if store is None:
+        return jsonify([])
+    bucket = request.args.get("bucket", "minute")
+    last_n = int(request.args.get("last_n", 60))
+    try:
+        store.flush()
+        return jsonify(store.timeline(bucket=bucket, last_n=last_n))
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/heatmap")
+def api_heatmap():
+    """Alert count by hour-of-day × severity using DuckDB's hour() function."""
+    store = _get_store()
+    if store is None:
+        return jsonify([])
+    try:
+        store.flush()
+        return jsonify(store.heatmap())
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/tags")
+def api_tags():
+    """MITRE ATT&CK tag frequency via unnest(tags) on the VARCHAR[] column."""
+    store = _get_store()
+    if store is None:
+        return jsonify([])
+    try:
+        store.flush()
+        return jsonify(store.tag_frequency())
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/sessions")
+def api_sessions():
+    """Attack session correlation via DuckDB window functions."""
+    store = _get_store()
+    if store is None:
+        return jsonify([])
+    window = int(request.args.get("window", 5))
+    try:
+        store.flush()
+        rows = store.attack_sessions(window_minutes=window)
+        # Serialize lists inside rows
+        for r in rows:
+            if isinstance(r.get("rules_fired"), list):
+                r["rules_fired"] = list(r["rules_fired"])
+        return jsonify(rows)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

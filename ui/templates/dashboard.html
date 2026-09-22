@@ -278,12 +278,27 @@
     </div>
   </div><!-- /row -->
 
-  <!-- ════ Tabs: History + Rules Browser ════ -->
+  <!-- ════ Tabs: History + Analytics + Rules Browser ════ -->
   <div class="mt-4">
     <ul class="nav nav-tabs" id="bottom-tab">
       <li class="nav-item">
         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-history">
           <i class="bi bi-clock-history me-1"></i>Alert History
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-timeline" id="tab-timeline-btn">
+          <i class="bi bi-graph-up me-1"></i>Timeline
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tags" id="tab-tags-btn">
+          <i class="bi bi-tags me-1"></i>MITRE Tags
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-sessions" id="tab-sessions-btn">
+          <i class="bi bi-person-exclamation me-1"></i>Attack Sessions
         </button>
       </li>
       <li class="nav-item">
@@ -327,6 +342,67 @@
         </div>
       </div>
 
+      <!-- Timeline Tab -->
+      <div class="tab-pane fade" id="tab-timeline">
+        <div class="d-flex gap-2 mb-2 align-items-center">
+          <select class="form-select form-select-sm w-auto" id="timeline-bucket">
+            <option value="minute">By Minute</option>
+            <option value="hour">By Hour</option>
+            <option value="day">By Day</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" id="btn-refresh-timeline">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+          <span class="text-muted small ms-2">Powered by DuckDB <code>date_trunc()</code></span>
+        </div>
+        <div style="background:#010409;border:1px solid var(--border);border-radius:8px;padding:1rem">
+          <canvas id="timeline-chart" height="120"></canvas>
+        </div>
+        <div id="timeline-empty" class="text-muted text-center py-3" style="display:none">No data yet — run the engine first</div>
+      </div>
+
+      <!-- MITRE Tags Tab -->
+      <div class="tab-pane fade" id="tab-tags">
+        <div class="d-flex gap-2 mb-2 align-items-center">
+          <button class="btn btn-sm btn-outline-secondary" id="btn-refresh-tags">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+          <span class="text-muted small ms-2">Powered by DuckDB <code>unnest(tags)</code> on native <code>VARCHAR[]</code></span>
+        </div>
+        <div id="tags-list" style="max-height:380px;overflow-y:auto">
+          <div class="text-muted text-center py-3">No data yet — run the engine first</div>
+        </div>
+      </div>
+
+      <!-- Attack Sessions Tab -->
+      <div class="tab-pane fade" id="tab-sessions">
+        <div class="d-flex gap-2 mb-2 align-items-center">
+          <label class="small text-muted">Session window:</label>
+          <select class="form-select form-select-sm w-auto" id="session-window">
+            <option value="2">2 min</option>
+            <option value="5" selected>5 min</option>
+            <option value="15">15 min</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" id="btn-refresh-sessions">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+          <span class="text-muted small ms-2">Powered by DuckDB window functions</span>
+        </div>
+        <div class="table-responsive" style="max-height:360px;overflow-y:auto">
+          <table class="table table-sm table-hover">
+            <thead class="table-dark sticky-top">
+              <tr>
+                <th>UID</th><th>Session Start</th><th>Session End</th>
+                <th>Alerts</th><th>Unique Rules</th><th>Max Severity</th><th>Rules Fired</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-body">
+              <tr><td colspan="7" class="text-muted text-center py-3">No correlated sessions yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Rules Browser -->
       <div class="tab-pane fade" id="tab-rules">
         <div class="mb-2">
@@ -355,6 +431,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════
 //  State
@@ -711,6 +788,167 @@ function escHtml(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+// ═══════════════════════════════════════════════
+//  ANALYTICS: Timeline (DuckDB date_trunc)
+// ═══════════════════════════════════════════════
+const SEV_COLORS = {
+  CRITICAL: 'rgba(188,140,255,0.85)',
+  HIGH:     'rgba(248,81,73,0.85)',
+  MEDIUM:   'rgba(210,153,34,0.85)',
+  LOW:      'rgba(63,185,80,0.85)',
+  INFO:     'rgba(88,166,255,0.85)',
+};
+let _timelineChart = null;
+
+async function loadTimeline() {
+  const bucket = document.getElementById('timeline-bucket').value;
+  try {
+    const r = await fetch(`/api/timeline?bucket=${bucket}&last_n=60`);
+    const rows = await r.json();
+    renderTimeline(rows, bucket);
+  } catch {}
+}
+
+function renderTimeline(rows, bucket) {
+  const canvas = document.getElementById('timeline-chart');
+  const empty  = document.getElementById('timeline-empty');
+  if (!rows.length) {
+    canvas.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  canvas.style.display = '';
+  empty.style.display = 'none';
+
+  // Pivot: { ts → { severity → count } }
+  const tsSet = [...new Set(rows.map(r => r.ts))].sort();
+  const sevs  = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
+  const pivot = {};
+  tsSet.forEach(ts => { pivot[ts] = {}; });
+  rows.forEach(r => { pivot[r.ts][r.severity] = r.count; });
+
+  const labels = tsSet.map(ts => {
+    const d = new Date(ts);
+    return bucket === 'minute' ? d.toLocaleTimeString()
+         : bucket === 'hour'   ? d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric'})
+         : d.toLocaleDateString();
+  });
+
+  const datasets = sevs
+    .filter(s => rows.some(r => r.severity === s))
+    .map(s => ({
+      label: s,
+      data: tsSet.map(ts => pivot[ts][s] || 0),
+      backgroundColor: SEV_COLORS[s],
+      borderRadius: 3,
+    }));
+
+  if (_timelineChart) _timelineChart.destroy();
+  _timelineChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#8b949e', font: { size: 11 } } },
+        tooltip: { mode: 'index' },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: '#8b949e', maxRotation: 45, font: { size: 10 } },
+          grid:  { color: '#21262d' },
+        },
+        y: {
+          stacked: true,
+          ticks: { color: '#8b949e', stepSize: 1 },
+          grid:  { color: '#21262d' },
+        },
+      },
+    },
+  });
+}
+
+document.getElementById('btn-refresh-timeline').addEventListener('click', loadTimeline);
+document.getElementById('timeline-bucket').addEventListener('change', loadTimeline);
+document.getElementById('tab-timeline-btn').addEventListener('click', () => {
+  if (!_timelineChart) loadTimeline();
+});
+
+// ═══════════════════════════════════════════════
+//  ANALYTICS: MITRE Tag Frequency (DuckDB unnest)
+// ═══════════════════════════════════════════════
+async function loadTags() {
+  try {
+    const r = await fetch('/api/tags');
+    const rows = await r.json();
+    renderTags(rows);
+  } catch {}
+}
+
+function renderTags(rows) {
+  const el = document.getElementById('tags-list');
+  if (!rows.length) {
+    el.innerHTML = '<div class="text-muted text-center py-3">No data yet — run the engine first</div>';
+    return;
+  }
+  const max = rows[0].count;
+  el.innerHTML = rows.map(r => {
+    const pct = Math.round((r.count / max) * 100);
+    return `
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="font-monospace" style="font-size:.78rem;min-width:200px">${escHtml(r.tag)}</span>
+        <div class="flex-grow-1" style="background:#21262d;border-radius:4px;height:14px;overflow:hidden">
+          <div style="width:${pct}%;background:#238636;height:100%;border-radius:4px;transition:width .3s"></div>
+        </div>
+        <span class="badge bg-secondary ms-1">${r.count}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('btn-refresh-tags').addEventListener('click', loadTags);
+document.getElementById('tab-tags-btn').addEventListener('click', loadTags);
+
+// ═══════════════════════════════════════════════
+//  ANALYTICS: Attack Sessions (DuckDB window fns)
+// ═══════════════════════════════════════════════
+const RANK_SEV = ['INFO','LOW','MEDIUM','HIGH','CRITICAL'];
+
+async function loadSessions() {
+  const win = document.getElementById('session-window').value;
+  try {
+    const r = await fetch(`/api/sessions?window=${win}`);
+    const rows = await r.json();
+    renderSessions(rows);
+  } catch {}
+}
+
+function renderSessions(rows) {
+  const tbody = document.getElementById('sessions-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">No correlated sessions — need multiple alerts from same UID</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const sev = RANK_SEV[r.max_severity_rank] || 'INFO';
+    const rules = (r.rules_fired || []).join(', ');
+    return `<tr>
+      <td>${r.uid ?? '?'}</td>
+      <td style="white-space:nowrap;font-size:.72rem">${r.session_start ? new Date(r.session_start).toLocaleString() : '—'}</td>
+      <td style="white-space:nowrap;font-size:.72rem">${r.session_end   ? new Date(r.session_end).toLocaleString()   : '—'}</td>
+      <td><span class="badge bg-secondary">${r.alert_count}</span></td>
+      <td>${r.unique_rules}</td>
+      <td><span class="badge badge-${sev} rounded-pill">${sev}</span></td>
+      <td style="font-size:.72rem;color:var(--muted)">${escHtml(rules)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('btn-refresh-sessions').addEventListener('click', loadSessions);
+document.getElementById('tab-sessions-btn').addEventListener('click', loadSessions);
+document.getElementById('session-window').addEventListener('change', loadSessions);
 </script>
 </body>
 </html>
