@@ -55,11 +55,19 @@ def cmd_stats(store: AlertStore, _args: argparse.Namespace) -> None:
     s = store.stats()
     print(f"\nTotal alerts : {s['total']}")
     print("\nBy severity:")
-    for sev, cnt in s["by_severity"].items():
-        print(f"  {sev:10s} {cnt}")
+    for sev, data in s["by_severity"].items():
+        cnt = data["count"] if isinstance(data, dict) else data
+        unique = data.get("unique_rules", "?") if isinstance(data, dict) else "?"
+        first  = data.get("first_seen", "?")   if isinstance(data, dict) else "?"
+        last   = data.get("last_seen", "?")    if isinstance(data, dict) else "?"
+        print(f"  {sev:10s} count={cnt}  unique_rules={unique}  first={first}  last={last}")
     print("\nTop rules:")
     for rule in s["top_rules"]:
-        print(f"  [{rule['rule_id']}] {rule['rule_name']:40s} {rule['count']}")
+        print(f"  [{rule['rule_id']}] {rule['rule_name']:40s} hits={rule['count']}  users={rule.get('unique_users','?')}")
+    if s.get("top_processes"):
+        print("\nTop processes:")
+        for proc in s["top_processes"]:
+            print(f"  {proc['exe']:40s} hits={proc['count']}  users={proc.get('unique_users','?')}")
 
 
 def cmd_count(store: AlertStore, args: argparse.Namespace) -> None:

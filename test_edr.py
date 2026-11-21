@@ -89,6 +89,17 @@ class TestIsHex:
     def test_empty(self):
         assert not is_hex("")
 
+    def test_short_false_positive_dd(self):
+        """'dd' is 2 valid hex chars but should NOT decode — it's a command name."""
+        assert not is_hex("dd")
+
+    def test_short_false_positive_id(self):
+        assert not is_hex("id")
+
+    def test_minimum_length_ok(self):
+        """4+ hex chars (≥2 encoded bytes) should still decode."""
+        assert is_hex("deadbeef")
+
 
 class TestDecodeField:
     def test_hex_decode(self):

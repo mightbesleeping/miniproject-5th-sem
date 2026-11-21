@@ -1,53 +1,65 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="light">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>EDR Dashboard</title>
+<title>EDR Threat Engine & Dashboard</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
 <style>
   :root {
-    --bg:        #0d1117;
-    --surface:   #161b22;
-    --border:    #30363d;
-    --text:      #e6edf3;
-    --muted:     #8b949e;
-    --info:      #58a6ff;
-    --low:       #3fb950;
-    --medium:    #d29922;
-    --high:      #f85149;
-    --critical:  #bc8cff;
-    --accent:    #238636;
+    --bg:        #f8fafc;
+    --surface:   #ffffff;
+    --surface-hover: #f1f5f9;
+    --border:    #cbd5e1;
+    --text:      #0f172a;
+    --muted:     #64748b;
+    --info:      #0284c7;
+    --low:       #16a34a;
+    --medium:    #ca8a04;
+    --high:      #dc2626;
+    --critical:  #9333ea;
+    --accent:    #2563eb;
   }
 
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+  body { 
+    background: var(--bg); 
+    color: var(--text); 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13.5px;
+    letter-spacing: -0.01em;
+  }
 
   /* ── Topbar ─────────────────────────────────────────────── */
   .topbar {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: .75rem 1.5rem;
-    display: flex; align-items: center; gap: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    display: flex; align-items: center; gap: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
-  .topbar h1 { font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: .04em; }
-  .topbar h1 span { color: var(--info); }
+  .topbar h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+  .topbar h1 span { color: var(--accent); font-weight: 500; }
   .status-dot {
-    width: 10px; height: 10px; border-radius: 50%;
+    width: 8px; height: 8px; border-radius: 50%;
     background: var(--muted); display: inline-block;
-    transition: background .3s;
+    transition: background .2s ease;
   }
-  .status-dot.live { background: #3fb950; box-shadow: 0 0 6px #3fb950; animation: pulse 1.5s infinite; }
+  .status-dot.live { background: var(--low); box-shadow: 0 0 8px rgba(22,163,74,0.4); animation: pulse 2s infinite; }
   .status-dot.error { background: var(--high); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 
   /* ── Stat cards ─────────────────────────────────────────── */
   .stat-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: .9rem 1.2rem; text-align: center;
+    background: var(--surface); 
+    border: 1px solid var(--border);
+    border-radius: 8px; 
+    padding: 0.85rem 1.1rem; 
+    text-align: left;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   }
-  .stat-card .num { font-size: 2rem; font-weight: 700; line-height: 1; }
-  .stat-card .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: .25rem; }
+  .stat-card .num { font-size: 1.6rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .stat-card .lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem; font-weight: 600; }
 
   /* ── Severity colours ───────────────────────────────────── */
   .sev-INFO     { color: var(--info);     }
@@ -56,69 +68,93 @@
   .sev-HIGH     { color: var(--high);     }
   .sev-CRITICAL { color: var(--critical); }
 
-  .badge-INFO     { background: rgba(88,166,255,.18); color: var(--info);     }
-  .badge-LOW      { background: rgba(63,185,80,.18);  color: var(--low);      }
-  .badge-MEDIUM   { background: rgba(210,153,34,.18); color: var(--medium);   }
-  .badge-HIGH     { background: rgba(248,81,73,.18);  color: var(--high);     }
-  .badge-CRITICAL { background: rgba(188,140,255,.18);color: var(--critical); }
+  .badge-INFO     { background: rgba(2,132,199,0.1); color: var(--info); border: 1px solid rgba(2,132,199,0.2); }
+  .badge-LOW      { background: rgba(22,163,74,0.1); color: var(--low); border: 1px solid rgba(22,163,74,0.2); }
+  .badge-MEDIUM   { background: rgba(202,138,4,0.1); color: var(--medium); border: 1px solid rgba(202,138,4,0.2); }
+  .badge-HIGH     { background: rgba(220,38,38,0.1); color: var(--high); border: 1px solid rgba(220,38,38,0.2); }
+  .badge-CRITICAL { background: rgba(147,51,234,0.1); color: var(--critical); border: 1px solid rgba(147,51,234,0.2); }
 
   /* ── Alert feed ─────────────────────────────────────────── */
   #alert-feed {
     height: 480px; overflow-y: auto;
-    background: #010409; border: 1px solid var(--border); border-radius: 8px;
-    font-family: 'JetBrains Mono','Fira Mono',monospace; font-size: .78rem;
-    padding: .5rem;
+    background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
+    font-size: 0.76rem;
+    padding: 0.5rem;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
   }
   .alert-row {
     border-left: 3px solid var(--border);
-    padding: .5rem .75rem;
-    margin-bottom: .35rem;
+    padding: 0.45rem 0.65rem;
+    margin-bottom: 0.3rem;
     border-radius: 0 4px 4px 0;
-    background: rgba(255,255,255,.02);
-    animation: fadeIn .25s ease;
+    background: #f8fafc;
     cursor: pointer;
-    transition: background .15s;
+    transition: background 0.1s ease;
   }
-  .alert-row:hover { background: rgba(255,255,255,.05); }
+  .alert-row:hover { background: var(--surface-hover); }
   .alert-row.INFO     { border-color: var(--info);     }
   .alert-row.LOW      { border-color: var(--low);      }
   .alert-row.MEDIUM   { border-color: var(--medium);   }
   .alert-row.HIGH     { border-color: var(--high);     }
   .alert-row.CRITICAL { border-color: var(--critical); }
-  .alert-row .rule-name { font-weight: 600; }
-  .alert-row .cmd-line  { color: var(--muted); font-size: .72rem; margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .alert-row .meta { font-size: .68rem; color: var(--muted); margin-top: .2rem; }
+  .alert-row .rule-name { font-weight: 600; color: var(--text); }
+  .alert-row .cmd-line  { color: var(--muted); font-size: 0.73rem; margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .alert-row .meta { font-size: 0.67rem; color: #94a3b8; margin-top: 0.2rem; }
 
-  @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
-
-  #empty-feed { color: var(--muted); text-align: center; padding: 3rem; }
+  #empty-feed { color: var(--muted); text-align: center; padding: 4rem; font-family: -apple-system, sans-serif; }
 
   /* ── History table ──────────────────────────────────────── */
-  #history-table { font-size: .8rem; }
-  #history-table td { vertical-align: middle; }
+  #history-table { font-size: 0.78rem; font-family: ui-monospace, monospace; }
+  #history-table td, #history-table th { padding: 0.55rem 0.75rem; border-color: var(--border); }
   .cmd-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 
   /* ── Rules browser ──────────────────────────────────────── */
-  .rule-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: .65rem 1rem; margin-bottom: .4rem; }
-  .rule-item .rule-id { font-family: monospace; font-size: .8rem; color: var(--muted); }
-  .rule-item .rule-desc { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+  .rule-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.9rem; margin-bottom: 0.4rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+  .rule-item .rule-id { font-family: ui-monospace, monospace; font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+  .rule-item .rule-desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; font-family: -apple-system, sans-serif; }
 
   /* ── Control panel ──────────────────────────────────────── */
-  .control-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; }
+  .control-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
 
   /* ── Tabs ───────────────────────────────────────────────── */
-  .nav-tabs .nav-link { color: var(--muted); border-color: transparent; }
-  .nav-tabs .nav-link.active { color: var(--text); background: var(--surface); border-color: var(--border) var(--border) var(--surface); }
+  .nav-tabs { border-bottom: 1px solid var(--border); }
+  .nav-tabs .nav-link { color: var(--muted); border: none; padding: 0.5rem 0.9rem; font-size: 0.81rem; border-radius: 6px 6px 0 0; font-weight: 500; }
+  .nav-tabs .nav-link:hover { color: var(--text); background: rgba(0,0,0,0.02); }
+  .nav-tabs .nav-link.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); border-bottom-color: var(--surface); font-weight: 600; }
+
+  /* Form elements refinement */
+  .form-control, .form-select {
+    background: #ffffff !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
+  }
+
+  .btn { font-size: 0.8rem; font-weight: 500; border-radius: 6px; padding: 0.4rem 0.85rem; transition: all 0.15s ease; }
+  .btn-success { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .btn-success:hover { background: #15803d; border-color: #15803d; }
+  .btn-outline-secondary { color: var(--text); border-color: var(--border); background: transparent; }
+  .btn-outline-secondary:hover { background: var(--surface-hover); border-color: var(--muted); color: var(--text); }
 
   /* scrollbar */
-  #alert-feed::-webkit-scrollbar { width: 5px; }
-  #alert-feed::-webkit-scrollbar-track { background: transparent; }
-  #alert-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  /* modal detail */
-  .detail-key { color: var(--muted); font-size: .78rem; }
-  .detail-val { font-family: monospace; font-size: .82rem; }
-  pre.cmd-block { background: #010409; border: 1px solid var(--border); border-radius: 6px; padding: .75rem; font-size: .82rem; white-space: pre-wrap; word-break: break-all; }
+  pre.cmd-block { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 0.85rem; font-size: 0.78rem; white-space: pre-wrap; word-break: break-all; color: var(--text); }
+  
+  /* About Section Styling */
+  .about-content { font-size: 0.85rem; line-height: 1.6; color: var(--text); }
+  .about-content h4 { font-size: 1rem; font-weight: 600; margin-top: 1rem; color: var(--accent); }
+  .about-content ul { padding-left: 1.25rem; }
+  .about-content code { background: #f1f5f9; padding: 0.15rem 0.35rem; border-radius: 4px; font-size: 0.8rem; color: #0f172a; border: 1px solid #e2e8f0; }
 </style>
 </head>
 <body>
@@ -126,8 +162,8 @@
 <!-- ════════════════ TOPBAR ════════════════ -->
 <div class="topbar">
   <div>
-    <span class="me-1" style="font-size:1.3rem">🛡️</span>
-    <h1 class="d-inline">EDR <span>Dashboard</span></h1>
+    <i class="bi bi-cpu-fill text-primary me-1" style="font-size:1.1rem"></i>
+    <h1 class="d-inline">EDR <span>Threat Engine</span></h1>
   </div>
   <div class="d-flex align-items-center gap-2 ms-2">
     <span class="status-dot" id="status-dot"></span>
@@ -135,15 +171,15 @@
   </div>
   <div class="ms-auto d-flex gap-2">
     <span class="badge rounded-pill bg-secondary" id="mode-badge" style="display:none!important"></span>
-    <span class="small text-muted" id="uptime-text"></span>
+    <span class="small text-muted font-monospace" id="uptime-text"></span>
   </div>
 </div>
 
 <!-- ════════════════ MAIN CONTENT ════════════════ -->
-<div class="container-fluid px-3 py-3">
+<div class="container-fluid px-4 py-3">
 
   <!-- Stat row -->
-  <div class="row g-2 mb-3">
+  <div class="row g-3 mb-3">
     <div class="col-6 col-md-2">
       <div class="stat-card">
         <div class="num" id="stat-total">—</div>
@@ -188,14 +224,14 @@
     <!-- ── Left: Live Feed ── -->
     <div class="col-lg-8">
       <div class="d-flex align-items-center mb-2 gap-2">
-        <span class="fw-semibold">Live Alert Feed</span>
+        <span class="fw-semibold text-secondary text-uppercase" style="font-size:0.75rem; letter-spacing:0.05em;"><i class="bi bi-activity me-1"></i> Live Alert Feed</span>
         <span class="badge bg-secondary ms-auto" id="feed-count">0</span>
         <button class="btn btn-sm btn-outline-secondary" id="btn-clear-feed" title="Clear feed">
           <i class="bi bi-trash3"></i>
         </button>
         <div class="form-check form-switch mb-0 ms-2">
           <input class="form-check-input" type="checkbox" id="auto-scroll" checked/>
-          <label class="form-check-label small" for="auto-scroll">Auto-scroll</label>
+          <label class="form-check-label small text-muted" for="auto-scroll">Auto-scroll</label>
         </div>
         <select class="form-select form-select-sm w-auto" id="sev-filter">
           <option value="">All severities</option>
@@ -208,8 +244,8 @@
       </div>
       <div id="alert-feed">
         <div id="empty-feed">
-          <i class="bi bi-shield-check" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>
-          No alerts yet — start the engine below
+          <i class="bi bi-shield-check text-muted" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
+          No alerts yet — start the engine via the control panel
         </div>
       </div>
     </div>
@@ -219,7 +255,7 @@
 
       <!-- Controls -->
       <div class="control-card mb-3">
-        <div class="fw-semibold mb-3"><i class="bi bi-cpu me-1"></i> Engine Controls</div>
+        <div class="fw-semibold mb-3 text-secondary text-uppercase" style="font-size:0.75rem; letter-spacing:0.05em;"><i class="bi bi-sliders me-1"></i> Engine Controls</div>
 
         <ul class="nav nav-tabs mb-3" id="mode-tab">
           <li class="nav-item">
@@ -239,34 +275,30 @@
           <input type="text" class="form-control form-control-sm mb-2" id="replay-path"
                  placeholder="/var/log/audit/audit.log"
                  value="data/sample_audit.log"/>
-          <div class="form-text mb-2" style="font-size:.72rem;color:var(--muted)">
+          <div class="form-text mb-2 text-muted" style="font-size:0.72rem;">
             Replay parses a static log file — no root required.<br>
-            <span style="color:#3fb950">✓ Sample log ready:</span> <code>data/sample_audit.log</code>
+            <span style="color:var(--low)"><i class="bi bi-check-circle me-1"></i>Sample log ready:</span> <code>data/sample_audit.log</code>
           </div>
         </div>
         <div id="live-panel" style="display:none">
           <div class="alert alert-warning py-2 small mb-2">
             <i class="bi bi-exclamation-triangle me-1"></i>
-            Live mode tails <code>/var/log/audit/audit.log</code> and requires
-            the app to run as <strong>root</strong>.
+            Live mode tails <code>/var/log/audit/audit.log</code> and requires running as <strong>root</strong>.
           </div>
         </div>
 
-        <div class="d-flex gap-2 mt-2">
+        <div class="mt-2">
           <button class="btn btn-success w-100" id="btn-start">
-            <i class="bi bi-play-fill me-1"></i>Start
-          </button>
-          <button class="btn btn-danger w-100" id="btn-stop" disabled>
-            <i class="bi bi-stop-fill me-1"></i>Stop
+            <i class="bi bi-play-fill me-1"></i>Start Engine
           </button>
         </div>
 
         <div id="engine-error" class="alert alert-danger mt-2 py-2 small" style="display:none"></div>
       </div>
 
-      <!-- Top Rules (from DuckDB stats) -->
+      <!-- Top Rules -->
       <div class="control-card">
-        <div class="fw-semibold mb-2"><i class="bi bi-bar-chart me-1"></i> Top Triggered Rules</div>
+        <div class="fw-semibold mb-2 text-secondary text-uppercase" style="font-size:0.75rem; letter-spacing:0.05em;"><i class="bi bi-bar-chart me-1"></i> Top Triggered Rules</div>
         <div id="top-rules">
           <div class="text-muted small text-center py-3">Run the engine to populate stats</div>
         </div>
@@ -278,7 +310,7 @@
     </div>
   </div><!-- /row -->
 
-  <!-- ════ Tabs: History + Analytics + Rules Browser ════ -->
+  <!-- ════ Tabs: History + Analytics + Rules Browser + About ════ -->
   <div class="mt-4">
     <ul class="nav nav-tabs" id="bottom-tab">
       <li class="nav-item">
@@ -307,8 +339,13 @@
           <span class="badge bg-secondary ms-1" id="rule-count"></span>
         </button>
       </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-about">
+          <i class="bi bi-info-circle me-1"></i>About Project
+        </button>
+      </li>
     </ul>
-    <div class="tab-content pt-3">
+    <div class="tab-content pt-3 bg-white p-3 border border-top-0 rounded-bottom" style="box-shadow: 0 1px 2px rgba(0,0,0,0.02)">
 
       <!-- History -->
       <div class="tab-pane fade show active" id="tab-history">
@@ -329,7 +366,7 @@
         </div>
         <div class="table-responsive" style="max-height:360px;overflow-y:auto">
           <table class="table table-sm table-hover" id="history-table">
-            <thead class="table-dark sticky-top">
+            <thead class="table-light sticky-top">
               <tr>
                 <th>#</th><th>Severity</th><th>Rule</th><th>PID</th>
                 <th>UID</th><th>Exe</th><th>Command</th><th>Fired At</th>
@@ -355,7 +392,7 @@
           </button>
           <span class="text-muted small ms-2">Powered by DuckDB <code>date_trunc()</code></span>
         </div>
-        <div style="background:#010409;border:1px solid var(--border);border-radius:8px;padding:1rem">
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:1rem">
           <canvas id="timeline-chart" height="120"></canvas>
         </div>
         <div id="timeline-empty" class="text-muted text-center py-3" style="display:none">No data yet — run the engine first</div>
@@ -390,7 +427,7 @@
         </div>
         <div class="table-responsive" style="max-height:360px;overflow-y:auto">
           <table class="table table-sm table-hover">
-            <thead class="table-dark sticky-top">
+            <thead class="table-light sticky-top">
               <tr>
                 <th>UID</th><th>Session Start</th><th>Session End</th>
                 <th>Alerts</th><th>Unique Rules</th><th>Max Severity</th><th>Rules Fired</th>
@@ -412,6 +449,27 @@
         <div id="rules-list" style="max-height:400px;overflow-y:auto"></div>
       </div>
 
+      <!-- About Tab -->
+      <div class="tab-pane fade about-content p-2" id="tab-about">
+        <h3 class="fw-bold mb-3 text-dark">About Endpoint Threat Detection (EDR) Engine</h3>
+        <p>
+          This application is a modular, real-time <strong>Endpoint Detection and Response (EDR)</strong> tool built to monitor system activities, parse Linux kernel audit logs, evaluate threat detection rules, and provide interactive analytics via a high-performance database.
+        </p>
+
+        <h4>Core Architecture & Key Concepts</h4>
+        <ul>
+          <li><strong>Linux Audit Framework (<a href="https://man7.org/linux/man-pages/man8/auditd.8.html" target="_blank">auditd</a>):</strong> Hooks directly into the Linux kernel auditing subsystem to capture system calls, process executions, and file accesses in real time.</li>
+          <li><strong>YAML Threat Rules:</strong> Modular detection signatures mapped against ATT&CK matrices covering reverse shells, privilege escalation, and persistence techniques.</li>
+          <li><strong>Columnar Analytics (<a href="https://duckdb.org/" target="_blank">DuckDB</a>):</strong> All alerts are stored locally in an optimized columnar database supporting fast aggregations, time-series bucketing, and session correlation.</li>
+          <li><strong>MITRE ATT&CK Framework (<a href="https://attack.mitre.org/" target="_blank">Learn More</a>):</strong> A globally accessible knowledge base of adversary tactics and techniques used to categorize threat behaviors.</li>
+        </ul>
+
+        <h4>Project Utility</h4>
+        <p>
+          Designed for academic and enterprise threat analysis, this dashboard enables security analysts or students to review historic attacks, simulate log replays, and instantly identify malicious behavior like <code>/dev/tcp</code> reverse shells or <code>LD_PRELOAD</code> injection attempts without risking live environments.
+        </p>
+      </div>
+
     </div>
   </div>
 
@@ -423,7 +481,7 @@
     <div class="modal-content" style="background:var(--surface);border-color:var(--border)">
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title" id="modal-title"></h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="modal-body"></div>
     </div>
@@ -433,27 +491,21 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
-// ═══════════════════════════════════════════════
-//  State
-// ═══════════════════════════════════════════════
+// State
 const state = {
   running: false,
   mode: 'replay',
   alertCount: 0,
-  feedAlerts: [],        // all alerts received this session
+  feedAlerts: [],
   startedAt: null,
 };
 
-// ═══════════════════════════════════════════════
-//  DOM refs
-// ═══════════════════════════════════════════════
 const $dot        = document.getElementById('status-dot');
 const $statusText = document.getElementById('status-text');
 const $feedCount  = document.getElementById('feed-count');
 const $feed       = document.getElementById('alert-feed');
 const $emptyFeed  = document.getElementById('empty-feed');
 const $btnStart   = document.getElementById('btn-start');
-const $btnStop    = document.getElementById('btn-stop');
 const $btnClear   = document.getElementById('btn-clear-feed');
 const $sevFilter  = document.getElementById('sev-filter');
 const $autoScroll = document.getElementById('auto-scroll');
@@ -468,12 +520,13 @@ const $topRules   = document.getElementById('top-rules');
 const $uptimeText = document.getElementById('uptime-text');
 
 const SEV_ICON = {
-  INFO: 'ℹ', LOW: '⚠', MEDIUM: '⚠', HIGH: '🔴', CRITICAL: '🚨'
+  INFO: '<i class="bi bi-info-circle"></i>', 
+  LOW: '<i class="bi bi-exclamation-triangle"></i>', 
+  MEDIUM: '<i class="bi bi-exclamation-triangle-fill"></i>', 
+  HIGH: '<i class="bi bi-shield-exclamation"></i>', 
+  CRITICAL: '<i class="bi bi-fire"></i>'
 };
 
-// ═══════════════════════════════════════════════
-//  SSE Connection
-// ═══════════════════════════════════════════════
 let es = null;
 function connectSSE() {
   es = new EventSource('/api/stream');
@@ -487,15 +540,12 @@ function handleMessage(msg) {
     applyStatus(msg);
   } else if (msg.type === 'alert') {
     addAlertToFeed(msg);
-    updateStatCards(null);  // refresh from server
+    updateStatCards();
   } else if (msg.type === 'error') {
     showEngineError(msg.message);
   }
 }
 
-// ═══════════════════════════════════════════════
-//  Status helpers
-// ═══════════════════════════════════════════════
 function applyStatus(s) {
   state.running = s.running;
   if (s.started_at) state.startedAt = new Date(s.started_at);
@@ -504,7 +554,7 @@ function applyStatus(s) {
   $dot.className = 'status-dot' + (s.running ? ' live' : '');
   if (s.running) {
     $statusText.textContent = s.mode === 'live' ? 'Live — tailing audit log' : 'Replaying log file…';
-    $statusText.className = 'small text-success';
+    $statusText.className = 'small text-success fw-semibold';
   } else {
     $statusText.textContent = 'Idle';
     $statusText.className = 'small text-muted';
@@ -512,16 +562,14 @@ function applyStatus(s) {
     $uptimeText.textContent = '';
   }
   $btnStart.disabled = s.running;
-  $btnStop.disabled  = !s.running;
 }
 
 function showEngineError(msg) {
-  $engineErr.textContent = '⚠ ' + msg;
+  $engineErr.textContent = msg;
   $engineErr.style.display = '';
   setTimeout(() => $engineErr.style.display = 'none', 8000);
 }
 
-// Uptime counter
 setInterval(() => {
   if (!state.running || !state.startedAt) return;
   const secs = Math.floor((Date.now() - state.startedAt) / 1000);
@@ -531,13 +579,9 @@ setInterval(() => {
   $uptimeText.textContent = `${h}:${m}:${s2}`;
 }, 1000);
 
-// ═══════════════════════════════════════════════
-//  Feed
-// ═══════════════════════════════════════════════
 function addAlertToFeed(alert) {
   state.feedAlerts.push(alert);
   $feedCount.textContent = state.feedAlerts.length;
-
   if ($emptyFeed) $emptyFeed.remove();
 
   const filter = $sevFilter.value;
@@ -545,22 +589,17 @@ function addAlertToFeed(alert) {
 
   const div = buildAlertRow(alert);
   $feed.appendChild(div);
-
-  if ($autoScroll.checked) {
-    $feed.scrollTop = $feed.scrollHeight;
-  }
+  if ($autoScroll.checked) $feed.scrollTop = $feed.scrollHeight;
 }
 
 function buildAlertRow(a) {
   const div = document.createElement('div');
   div.className = `alert-row ${a.severity}`;
-  div.dataset.alert = JSON.stringify(a);
-
   const ts = new Date(a.fired_at).toLocaleTimeString();
-  const icon = SEV_ICON[a.severity] || '•';
+  const icon = SEV_ICON[a.severity] || '<i class="bi bi-dot"></i>';
   div.innerHTML = `
     <div class="d-flex align-items-baseline gap-2">
-      <span class="sev-${a.severity}" style="font-size:.75rem;min-width:68px">
+      <span class="sev-${a.severity}" style="font-size:.75rem;min-width:76px;font-weight:600">
         ${icon} ${a.severity}
       </span>
       <span class="rule-name">${a.rule_id} — ${a.rule_name}</span>
@@ -573,7 +612,7 @@ function buildAlertRow(a) {
   return div;
 }
 
-function rebuildFeed() {
+$sevFilter.addEventListener('change', () => {
   $feed.innerHTML = '';
   const filter = $sevFilter.value;
   const visible = filter ? state.feedAlerts.filter(a => a.severity === filter) : state.feedAlerts;
@@ -582,38 +621,33 @@ function rebuildFeed() {
     return;
   }
   visible.forEach(a => $feed.appendChild(buildAlertRow(a)));
-  if ($autoScroll.checked) $feed.scrollTop = $feed.scrollHeight;
-}
+});
 
-$sevFilter.addEventListener('change', rebuildFeed);
 $btnClear.addEventListener('click', () => {
   state.feedAlerts = [];
   $feedCount.textContent = '0';
-  $feed.innerHTML = '<div id="empty-feed" class="text-muted text-center py-5"><i class="bi bi-shield-check" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>Feed cleared</div>';
+  $feed.innerHTML = '<div id="empty-feed" class="text-muted text-center py-5">Feed cleared</div>';
 });
 
-// ═══════════════════════════════════════════════
-//  Stat cards
-// ═══════════════════════════════════════════════
 async function updateStatCards() {
   try {
     const r = await fetch('/api/stats');
     if (!r.ok) return;
     const s = await r.json();
     document.getElementById('stat-total').textContent    = s.total ?? '—';
-    document.getElementById('stat-critical').textContent = s.by_severity?.CRITICAL ?? 0;
-    document.getElementById('stat-high').textContent     = s.by_severity?.HIGH ?? 0;
-    document.getElementById('stat-medium').textContent   = s.by_severity?.MEDIUM ?? 0;
-    document.getElementById('stat-low').textContent      = s.by_severity?.LOW ?? 0;
-    document.getElementById('stat-info').textContent     = s.by_severity?.INFO ?? 0;
+    document.getElementById('stat-critical').textContent = s.by_severity?.CRITICAL?.count ?? 0;
+    document.getElementById('stat-high').textContent     = s.by_severity?.HIGH?.count     ?? 0;
+    document.getElementById('stat-medium').textContent   = s.by_severity?.MEDIUM?.count   ?? 0;
+    document.getElementById('stat-low').textContent      = s.by_severity?.LOW?.count      ?? 0;
+    document.getElementById('stat-info').textContent     = s.by_severity?.INFO?.count     ?? 0;
 
-    // Top rules
     if (s.top_rules?.length) {
       $topRules.innerHTML = s.top_rules.slice(0, 6).map(r => `
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-muted font-monospace" style="font-size:.72rem">${r.rule_id}</span>
           <span class="flex-grow-1 ms-2 text-truncate">${r.rule_name}</span>
-          <span class="badge bg-secondary ms-2">${r.count}</span>
+          <span class="badge badge-${r.severity} rounded-pill ms-2">${r.severity[0]}</span>
+          <span class="badge bg-secondary ms-1">${r.count}</span>
         </div>
       `).join('');
     }
@@ -621,13 +655,8 @@ async function updateStatCards() {
 }
 updateStatCards();
 document.getElementById('btn-refresh-stats').addEventListener('click', updateStatCards);
-
-// Periodic refresh while running
 setInterval(() => { if (state.running) updateStatCards(); }, 5000);
 
-// ═══════════════════════════════════════════════
-//  Engine controls
-// ═══════════════════════════════════════════════
 const modeBtns = document.querySelectorAll('[data-mode]');
 modeBtns.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -654,15 +683,7 @@ $btnStart.addEventListener('click', async () => {
   if (!j.ok) showEngineError(j.error);
 });
 
-$btnStop.addEventListener('click', async () => {
-  await fetch('/api/stop', { method: 'POST' });
-});
-
-// ═══════════════════════════════════════════════
-//  Alert History
-// ═══════════════════════════════════════════════
 let _historyData = [];
-
 async function loadHistory() {
   const sev = $histSev.value;
   const url = '/api/recent?limit=100' + (sev ? `&severity=${sev}` : '');
@@ -702,11 +723,7 @@ document.querySelector('[data-bs-target="#tab-history"]').addEventListener('clic
 $histSearch.addEventListener('input', renderHistory);
 $histSev.addEventListener('change', loadHistory);
 
-// ═══════════════════════════════════════════════
-//  Rules browser
-// ═══════════════════════════════════════════════
 let _allRules = [];
-
 async function loadRules() {
   try {
     const r = await fetch('/api/rules');
@@ -730,7 +747,7 @@ function renderRules() {
         <span class="ms-auto badge badge-${r.severity} rounded-pill">${r.severity}</span>
       </div>
       <div class="rule-desc">${escHtml(r.description)}</div>
-      <div class="mt-1">${(r.tags||[]).map(t=>`<span class="badge bg-secondary me-1" style="font-size:.65rem">${t}</span>`).join('')}</div>
+      <div class="mt-1">${(r.tags||[]).map(t=>`<span class="badge bg-light text-dark border me-1" style="font-size:.65rem">${t}</span>`).join('')}</div>
     </div>
   `).join('');
 }
@@ -741,11 +758,7 @@ document.querySelector('[data-bs-target="#tab-rules"]').addEventListener('click'
 $rulesSearch.addEventListener('input', renderRules);
 loadRules();
 
-// ═══════════════════════════════════════════════
-//  Alert Detail Modal
-// ═══════════════════════════════════════════════
 const alertModal = new bootstrap.Modal(document.getElementById('alert-modal'));
-
 function showAlertModal(a) {
   document.getElementById('modal-title').innerHTML =
     `<span class="sev-${a.severity}">${SEV_ICON[a.severity]} ${a.severity}</span>
@@ -754,50 +767,44 @@ function showAlertModal(a) {
   document.getElementById('modal-body').innerHTML = `
     <div class="row g-3 mb-3">
       <div class="col-6">
-        <div class="detail-key">Rule ID</div><div class="detail-val">${a.rule_id}</div>
+        <div class="text-muted small">Rule ID</div><div class="fw-monospace">${a.rule_id}</div>
       </div>
       <div class="col-6">
-        <div class="detail-key">Fired At</div><div class="detail-val">${new Date(a.fired_at).toLocaleString()}</div>
+        <div class="text-muted small">Fired At</div><div class="fw-monospace">${new Date(a.fired_at).toLocaleString()}</div>
       </div>
       <div class="col-6">
-        <div class="detail-key">PID</div><div class="detail-val">${a.pid ?? '—'}</div>
+        <div class="text-muted small">PID</div><div class="fw-monospace">${a.pid ?? '—'}</div>
       </div>
       <div class="col-6">
-        <div class="detail-key">UID</div><div class="detail-val">${a.uid ?? '—'}</div>
+        <div class="text-muted small">UID</div><div class="fw-monospace">${a.uid ?? '—'}</div>
       </div>
       <div class="col-12">
-        <div class="detail-key">Executable</div><div class="detail-val font-monospace">${escHtml(a.exe||'—')}</div>
+        <div class="text-muted small">Executable</div><div class="fw-monospace">${escHtml(a.exe||'—')}</div>
       </div>
       <div class="col-12">
-        <div class="detail-key">CWD</div><div class="detail-val font-monospace">${escHtml(a.cwd||'—')}</div>
+        <div class="text-muted small">CWD</div><div class="fw-monospace">${escHtml(a.cwd||'—')}</div>
       </div>
     </div>
-    <div class="detail-key mb-1">Command</div>
+    <div class="text-muted small mb-1">Command</div>
     <pre class="cmd-block">${escHtml(a.cmd||'—')}</pre>
-    <div class="detail-key mt-2 mb-1">Tags</div>
-    <div>${(a.tags||[]).map(t=>`<span class="badge bg-secondary me-1">${t}</span>`).join('')}</div>
+    <div class="text-muted small mt-2 mb-1">Tags</div>
+    <div>${(a.tags||[]).map(t=>`<span class="badge bg-light text-dark border me-1">${t}</span>`).join('')}</div>
   `;
   alertModal.show();
 }
 
-// ═══════════════════════════════════════════════
-//  Utilities
-// ═══════════════════════════════════════════════
 function escHtml(s) {
   return String(s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ═══════════════════════════════════════════════
-//  ANALYTICS: Timeline (DuckDB date_trunc)
-// ═══════════════════════════════════════════════
 const SEV_COLORS = {
-  CRITICAL: 'rgba(188,140,255,0.85)',
-  HIGH:     'rgba(248,81,73,0.85)',
-  MEDIUM:   'rgba(210,153,34,0.85)',
-  LOW:      'rgba(63,185,80,0.85)',
-  INFO:     'rgba(88,166,255,0.85)',
+  CRITICAL: 'rgba(147,51,234,0.75)',
+  HIGH:     'rgba(220,38,38,0.75)',
+  MEDIUM:   'rgba(202,138,4,0.75)',
+  LOW:      'rgba(22,163,74,0.75)',
+  INFO:     'rgba(2,132,199,0.75)',
 };
 let _timelineChart = null;
 
@@ -821,7 +828,6 @@ function renderTimeline(rows, bucket) {
   canvas.style.display = '';
   empty.style.display = 'none';
 
-  // Pivot: { ts → { severity → count } }
   const tsSet = [...new Set(rows.map(r => r.ts))].sort();
   const sevs  = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
   const pivot = {};
@@ -851,19 +857,19 @@ function renderTimeline(rows, bucket) {
     options: {
       responsive: true,
       plugins: {
-        legend: { labels: { color: '#8b949e', font: { size: 11 } } },
+        legend: { labels: { color: '#64748b', font: { size: 11 } } },
         tooltip: { mode: 'index' },
       },
       scales: {
         x: {
           stacked: true,
-          ticks: { color: '#8b949e', maxRotation: 45, font: { size: 10 } },
-          grid:  { color: '#21262d' },
+          ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } },
+          grid:  { color: '#e2e8f0' },
         },
         y: {
           stacked: true,
-          ticks: { color: '#8b949e', stepSize: 1 },
-          grid:  { color: '#21262d' },
+          ticks: { color: '#64748b', stepSize: 1 },
+          grid:  { color: '#e2e8f0' },
         },
       },
     },
@@ -876,9 +882,6 @@ document.getElementById('tab-timeline-btn').addEventListener('click', () => {
   if (!_timelineChart) loadTimeline();
 });
 
-// ═══════════════════════════════════════════════
-//  ANALYTICS: MITRE Tag Frequency (DuckDB unnest)
-// ═══════════════════════════════════════════════
 async function loadTags() {
   try {
     const r = await fetch('/api/tags');
@@ -898,9 +901,9 @@ function renderTags(rows) {
     const pct = Math.round((r.count / max) * 100);
     return `
       <div class="d-flex align-items-center gap-2 mb-2">
-        <span class="font-monospace" style="font-size:.78rem;min-width:200px">${escHtml(r.tag)}</span>
-        <div class="flex-grow-1" style="background:#21262d;border-radius:4px;height:14px;overflow:hidden">
-          <div style="width:${pct}%;background:#238636;height:100%;border-radius:4px;transition:width .3s"></div>
+        <span class="font-monospace text-secondary" style="font-size:.78rem;min-width:200px">${escHtml(r.tag)}</span>
+        <div class="flex-grow-1" style="background:#e2e8f0;border-radius:4px;height:12px;overflow:hidden">
+          <div style="width:${pct}%;background:#2563eb;height:100%;border-radius:4px;"></div>
         </div>
         <span class="badge bg-secondary ms-1">${r.count}</span>
       </div>
@@ -911,11 +914,7 @@ function renderTags(rows) {
 document.getElementById('btn-refresh-tags').addEventListener('click', loadTags);
 document.getElementById('tab-tags-btn').addEventListener('click', loadTags);
 
-// ═══════════════════════════════════════════════
-//  ANALYTICS: Attack Sessions (DuckDB window fns)
-// ═══════════════════════════════════════════════
 const RANK_SEV = ['INFO','LOW','MEDIUM','HIGH','CRITICAL'];
-
 async function loadSessions() {
   const win = document.getElementById('session-window').value;
   try {

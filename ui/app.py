@@ -150,13 +150,18 @@ def _run_engine(cfg: dict, mode: str, replay_file: str | None) -> None:
 
         prev_serial: str | None = None
         for raw_line in stream:
+            # FIX: Check stop event at the start of every single line iteration
             if _stop_event.is_set():
+                logger.info("Stop event detected — breaking stream loop.")
                 break
+                
             record = parse_line(raw_line)
             if not record:
                 continue
             serial = record["serial"]
             if prev_serial and serial != prev_serial:
+                if _stop_event.is_set():
+                    break
                 ev = assembler.flush_serial(prev_serial)
                 if ev:
                     decode_event(ev)

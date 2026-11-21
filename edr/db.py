@@ -433,27 +433,39 @@ class AlertStore:
         """
         Correlate alerts by UID within a rolling time window to surface
         likely attack sessions — uses DuckDB window functions.
+
+        DuckDB does not allow nesting a window function inside a scalar
+        function (e.g. epoch(LAG(…) OVER (…))), so we split the work
+        into two CTEs:
+          1. lag_cte  — compute the LAG of fired_at per UID.
+          2. session_cte — compute epoch difference and assign session IDs.
         """
         rows = self._q(
             """
-            SELECT
-                event_uid,
-                MIN(fired_at)                           AS session_start,
-                MAX(fired_at)                           AS session_end,
-                COUNT(*)                                AS alert_count,
-                COUNT(DISTINCT rule_id)                 AS unique_rules,
-                MAX(severity_rank)                      AS max_rank,
-                ARRAY_AGG(DISTINCT rule_id ORDER BY rule_id) AS rules_fired
-            FROM (
+            WITH lag_cte AS (
                 SELECT *,
-                    SUM(CASE WHEN
-                        epoch(fired_at) - epoch(LAG(fired_at, 1, fired_at)
-                            OVER (PARTITION BY event_uid ORDER BY fired_at))
-                        > ? * 60 THEN 1 ELSE 0 END)
-                    OVER (PARTITION BY event_uid ORDER BY fired_at)  AS session_id
+                    LAG(fired_at, 1, fired_at)
+                        OVER (PARTITION BY event_uid ORDER BY fired_at) AS prev_fired_at
                 FROM alerts
                 WHERE event_uid IS NOT NULL
-            ) sub
+            ),
+            session_cte AS (
+                SELECT *,
+                    SUM(CASE WHEN
+                            epoch(fired_at) - epoch(prev_fired_at) > ? * 60
+                        THEN 1 ELSE 0 END)
+                    OVER (PARTITION BY event_uid ORDER BY fired_at) AS session_id
+                FROM lag_cte
+            )
+            SELECT
+                event_uid,
+                MIN(fired_at)                               AS session_start,
+                MAX(fired_at)                               AS session_end,
+                COUNT(*)                                    AS alert_count,
+                COUNT(DISTINCT rule_id)                     AS unique_rules,
+                MAX(severity_rank)                          AS max_rank,
+                ARRAY_AGG(DISTINCT rule_id ORDER BY rule_id) AS rules_fired
+            FROM session_cte
             GROUP BY event_uid, session_id
             HAVING COUNT(*) > 1
             ORDER BY max_rank DESC, alert_count DESC

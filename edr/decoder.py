@@ -14,10 +14,20 @@ import shlex
 
 _HEX_RE = re.compile(r"^[0-9A-Fa-f]+$")
 
+# Minimum byte length to avoid false-positives on short names like 'dd', 'id',
+# 'nc', 'at', 'be' that happen to be valid 2-hex-digit strings.
+_MIN_HEX_BYTES = 2  # i.e. ≥ 4 hex chars (at least 4 characters / 2 bytes)
+
 
 def is_hex(value: str) -> bool:
-    """Return True if *value* looks like a hex-encoded auditd field."""
-    return bool(value) and len(value) % 2 == 0 and bool(_HEX_RE.match(value))
+    """Return True if *value* looks like a hex-encoded auditd field.
+
+    Guards against false positives for short command names (dd, id, nc…)
+    by requiring at least 4 hex characters (2 bytes of encoded data).
+    """
+    if not value or len(value) % 2 != 0 or len(value) < _MIN_HEX_BYTES * 2:
+        return False
+    return bool(_HEX_RE.match(value))
 
 
 def decode_field(value: str) -> str:

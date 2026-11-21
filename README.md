@@ -57,6 +57,16 @@ miniproject/
 
 ### 1. Install dependencies
 
+If `uv` is not found, install it and add its default install directory to this
+shell's `PATH`:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Then install the project dependencies as your regular user:
+
 ```bash
 uv sync
 ```
@@ -77,8 +87,11 @@ uv run python db_setup.py
 
 ### 4. Run in live mode (requires root)
 
+Run the app with the project virtual environment. Do not use `sudo uv run`:
+`sudo` may not include the directory where `uv` was installed.
+
 ```bash
-sudo uv run python main.py
+sudo .venv/bin/python main.py
 ```
 
 ### 5. Replay a saved audit log (no root needed)
